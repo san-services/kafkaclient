@@ -25,11 +25,11 @@ const (
 	// ConsumerTypeGroup configures the consumer as part of a consumer group
 	ConsumerTypeGroup consumerType = "CONSUMER_GROUP"
 
-	// MessageFormatAvro specified that messages in a topic are stored in avro format
+	// MessageFormatAvro specifies that messages in a topic are stored in avro format
 	MessageFormatAvro messageFormat = "MESSAGE_AVRO"
-	// MessageFormatJSON specified that messages in a topic are stored in JSON format
+	// MessageFormatJSON specifies that messages in a topic are stored in JSON format
 	MessageFormatJSON messageFormat = "MESSAGE_JSON"
-	// MessageFormatString specified that messages in a topic are stored in string format
+	// MessageFormatString specifies that messages in a topic are stored in string format
 	MessageFormatString messageFormat = "MESSAGE_STRING"
 
 	// ProducerTypeAsync configures a producer with an asynchronous response mechanism

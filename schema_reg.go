@@ -12,7 +12,7 @@ import (
 	schemaregistry "github.com/landoop/schema-registry"
 )
 
-// SchemaRegistry is an interface implemented by kafka schema registry clients
+// schemaRegistry is an interface implemented by kafka schema registry clients
 type schemaRegistry interface {
 	GetSchemaByID(ctx context.Context, id int) (string, error)
 	GetSchemaByTopic(ctx context.Context, topic string) (schema string, schemaID int, e error)
