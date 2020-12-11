@@ -2,8 +2,6 @@ package kafkaclient
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"reflect"
 
 	logger "github.com/disturb16/apilogger"
@@ -81,7 +79,7 @@ func (ed avroEncoderDecoder) Encode(
 
 	rv := reflect.ValueOf(s)
 	if rv.Kind() != reflect.Struct {
-		e = errors.New("input is not struct")
+		e = errStructRequired
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
@@ -159,7 +157,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 	rv := reflect.ValueOf(target)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		e = errors.New("pointer to struct required")
+		e = errPtrRequired
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
@@ -180,7 +178,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	for k, v := range data {
 		v, ok := v.(map[string]interface{})
 		if !ok {
-			e = errors.New("problem with message format")
+			e = errMessageFmt
 			lg.Error(logger.LogCatUncategorized, e)
 			return
 		}
@@ -195,8 +193,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 		mapValType := reflect.TypeOf(mapVal)
 
 		if targetFieldType != mapValType {
-			e = fmt.Errorf("struct field [%s], currently type %s, should be type %s to match binary data",
-				fieldInfo.Name, targetFieldType, mapValType)
+			e = errUnmarshallFieldType(fieldInfo.Name, targetFieldType, mapValType)
 			lg.Error(logger.LogCatUncategorized, e)
 			return
 		}
@@ -240,7 +237,7 @@ func (ed avroEncoderDecoder) binaryToMap(
 
 	data, ok := i.(map[string]interface{})
 	if !ok {
-		e = errors.New("problem with message format")
+		e = errMessageFmt
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
@@ -285,7 +282,7 @@ func getFieldMap(ctx context.Context,
 	lg := logger.New(ctx, "")
 
 	if rv.IsNil() {
-		e = errors.New("reflect.Value is nil")
+		e = errFieldValNil
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
