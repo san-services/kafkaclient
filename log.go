@@ -1,6 +1,9 @@
 package kafkaclient
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	// INFO
@@ -17,4 +20,5 @@ var (
 	errKafkaVersion  = func(v string) error { return fmt.Errorf("error parsing kafka version [%s]", v) }
 	errConsumer      = func(e error) error { return fmt.Errorf("datasync consumer error - %s", e) }
 	errConsumerClose = func(e error) error { return fmt.Errorf("error closing consumer - %s", e) }
+	errNotImpl       = errors.New("functionality not yet implemented")
 )

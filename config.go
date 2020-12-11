@@ -3,11 +3,20 @@ package kafkaclient
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
+
+	logger "github.com/disturb16/apilogger"
+)
+
+var (
+	errNoEncoderDecoder = func(typ string) error {
+		return fmt.Errorf("%s message encoder/decoder not yet implemented", typ)
+	}
 )
 
 type consumerType string
-type messageType string
+type messageFormat string
 type producerType string
 
 const (
@@ -16,12 +25,12 @@ const (
 	// ConsumerTypeGroup configures the consumer as part of a consumer group
 	ConsumerTypeGroup consumerType = "CONSUMER_GROUP"
 
-	// MessageTypeAvro specified that messages in a topic are stored in avro format
-	MessageTypeAvro messageType = "MESSAGE_AVRO"
-	// MessageTypeJSON specified that messages in a topic are stored in JSON format
-	MessageTypeJSON messageType = "MESSAGE_JSON"
-	// MessageTypeString specified that messages in a topic are stored in string format
-	MessageTypeString messageType = "MESSAGE_STRING"
+	// MessageFormatAvro specified that messages in a topic are stored in avro format
+	MessageFormatAvro messageFormat = "MESSAGE_AVRO"
+	// MessageFormatJSON specified that messages in a topic are stored in JSON format
+	MessageFormatJSON messageFormat = "MESSAGE_JSON"
+	// MessageFormatString specified that messages in a topic are stored in string format
+	MessageFormatString messageFormat = "MESSAGE_STRING"
 
 	// ProducerTypeAsync configures a producer with an asynchronous response mechanism
 	ProducerTypeAsync producerType = "PRODUCER_ASYNC"
@@ -31,6 +40,8 @@ const (
 	// config defaults
 )
 
+// Config holds specifics used to configure different
+// part of the kafka client
 type Config struct {
 	KafkaVersion    string
 	Brokers         []string
@@ -46,11 +57,14 @@ type Config struct {
 
 // NewConfig constructs and returns a Config struct
 func NewConfig(
-	version string, brokers []string, topics []TopicConfig,
-	schemaRegURL string, consType consumerType, groupID string, prodType producerType,
-	readFromOldest bool, tls *tls.Config, debug bool) Config {
+	ctx context.Context, version string, brokers []string,
+	topics []TopicConfig, schemaRegURL string, consType consumerType,
+	groupID string, prodType producerType, readFromOldest bool,
+	tls *tls.Config, debug bool) (c Config, e error) {
 
-	return Config{
+	lg := logger.New(ctx, "")
+
+	c = Config{
 		KafkaVersion:    version,
 		Brokers:         brokers,
 		Topics:          topics,
@@ -61,6 +75,26 @@ func NewConfig(
 		ReadFromOldest:  readFromOldest,
 		TLS:             tls,
 		Debug:           debug}
+
+	sr, e := newSchemaReg(schemaRegURL, tls, c.TopicMap())
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	for i, t := range topics {
+		switch t.MessageType {
+		case MessageFormatAvro:
+			topics[i].MessageEncoderDecoder = newAvroEncDec(sr)
+		case MessageFormatJSON:
+			e = errNoEncoderDecoder("JSON")
+		case MessageFormatString:
+			e = errNoEncoderDecoder("string")
+		default:
+		}
+	}
+
+	return
 }
 
 // TopicMap constructs and returns a map of topic
@@ -86,7 +120,8 @@ func (c Config) TopicNames() (n []string) {
 // existing Kafka topic that can be consumed from or written to
 type TopicConfig struct {
 	Name                  string
-	MessageEncoderDecoder encoderDecoder
+	MessageType           messageFormat
+	MessageEncoderDecoder EncoderDecoder
 	DelayProcessingMins   time.Duration
 	// FailedProcessingTopic is the retry topic to which a message
 	// should be handed off in the case of a failure to process the message
@@ -99,20 +134,13 @@ type TopicConfig struct {
 
 // NewTopicConfig constructs and returns a TopicConfig struct
 func NewTopicConfig(
-	name string, msgType messageType, delayMins time.Duration,
+	name string, msgType messageFormat, delayMins time.Duration,
 	failTopic string, schema string, schemaVersion int,
 	processorFunc func(context.Context, ConsumerMessage) error) TopicConfig {
 
-	switch msgType {
-	case MessageTypeAvro:
-	case MessageTypeJSON:
-	case MessageTypeString:
-	default:
-	}
-
 	return TopicConfig{
-		Name: name,
-		// MessageEncoderDecoder: msgType,
+		Name:                  name,
+		MessageType:           msgType,
 		DelayProcessingMins:   delayMins,
 		FailedProcessingTopic: failTopic,
 		Schema:                schema,

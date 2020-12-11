@@ -30,50 +30,134 @@ type avroEncoderDecoder struct {
 	schemaReg schemaRegistry
 }
 
-// NewAvroEncDec constructs and returns a new avro EncoderDecoder
-func newAvroEncDec(s schemaRegistry) encoderDecoder {
+// NewAvroEncDec constructs and returns a new avro message EncoderDecoder
+func newAvroEncDec(s schemaRegistry) EncoderDecoder {
 	return &avroEncoderDecoder{schemaReg: s}
 }
 
-// GetCodec returns a Codec for the given topic, which can use the
-// topic's schema to transform data from, and intended for, the topic
-func (a avroEncoderDecoder) GetCodec(
-	ctx context.Context, topic string) (c codec, e error) {
+// Encode converts a native go struct to binary avro data
+//
+// Fields of the struct to be encoded should have avro
+// tags matching schema field names, e.g.:
+//
+//  type Thing struct {
+//		ID    int64  `avro:"ID"`
+//		Name  string `avro:"NAME"`
+//  }
+//
+//  matches
+//
+//  schema := `
+//		{
+//			"type": "record",
+//          "fields": [
+//	            {
+//		            "name": "ID",
+//		            "type": [
+//			             "null",
+//			             "long"
+//		             ],
+//		            "default": null
+//	            },
+//	            {
+//		            "name": "NAME",
+//		            "type": [
+//			             "null",
+//			             "string"
+//		             ],
+//		            "default": null
+//	            },
+//			 ]
+//       }
+//  `
+//
+// Also note the typemap above when creating structs to
+// either encode as avro or unmarshall avro message data into.
+//
+func (ed avroEncoderDecoder) Encode(
+	ctx context.Context, topic string, s interface{}) (b []byte, e error) {
 
 	lg := logger.New(ctx, "")
 
-	schema, schemaID, e := a.schemaReg.GetSchemaByTopic(ctx, topic)
+	rv := reflect.ValueOf(s)
+	if rv.Kind() != reflect.Struct {
+		e = errors.New("input is not struct")
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	fields, e := getFieldMap(ctx, rv)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
 
-	codec, e := goavro.NewCodec(schema)
+	dataMap := make(map[string]interface{})
+	for k, v := range fields {
+		if v.GoType == "[]uint8" {
+			v.Value = string(v.Value.([]byte))
+		}
+		dataMap[k] = map[string]interface{}{v.AvroType: v.Value}
+	}
+
+	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 	}
 
-	return &avroCodec{
-		codec:    codec,
-		schema:   schema,
-		schemaID: schemaID}, nil
+	b, e = codec.BinaryFromNative(nil, dataMap)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	return
 }
 
-// AvroCodec contains data structures necessary to
-// transform data from, and intended for, the topic
-type avroCodec struct {
-	schemaID int
-	schema   string
-	codec    *goavro.Codec
-}
-
-// BinaryToNative converts a binary message to a native go struct
-func (c avroCodec) BinaryToNative(
-	ctx context.Context, b []byte, ptr interface{}) (e error) {
+// Decode converts a binary message to a native go struct
+//
+// Target struct fields should have avro tags matching schema field names, e.g.:
+//
+//  type Thing struct {
+//		ID    int64  `avro:"ID"`
+//		Name  string `avro:"NAME"`
+//  }
+//
+//  matches
+//
+//  schema := `
+//		{
+//			"type": "record",
+//          "fields": [
+//	            {
+//		            "name": "ID",
+//		            "type": [
+//			             "null",
+//			             "long"
+//		             ],
+//		            "default": null
+//	            },
+//	            {
+//		            "name": "NAME",
+//		            "type": [
+//			             "null",
+//			             "string"
+//		             ],
+//		            "default": null
+//	            },
+//			 ]
+//       }
+//  `
+//
+// Also note the typemap above when creating structs to
+// either encode as avro or unmarshall avro message data into.
+//
+func (ed avroEncoderDecoder) Decode(ctx context.Context,
+	topic string, b []byte, target interface{}) (e error) {
 
 	lg := logger.New(ctx, "")
 
-	rv := reflect.ValueOf(ptr)
+	rv := reflect.ValueOf(target)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		e = errors.New("pointer to struct required")
 		lg.Error(logger.LogCatUncategorized, e)
@@ -81,7 +165,7 @@ func (c avroCodec) BinaryToNative(
 	}
 	rv = rv.Elem()
 
-	data, e := c.binaryToMap(ctx, b)
+	data, e := ed.binaryToMap(ctx, topic, b)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
@@ -125,53 +209,30 @@ func (c avroCodec) BinaryToNative(
 	return
 }
 
-// NativeToBinary converts a native go struct to binary avro data
-func (c avroCodec) NativeToBinary(
-	ctx context.Context, s interface{}) (b []byte, e error) {
+func (ed avroEncoderDecoder) GetSchemaID(
+	ctx context.Context, topic string) (id int, e error) {
 
 	lg := logger.New(ctx, "")
 
-	rv := reflect.ValueOf(s)
-	if rv.Kind() != reflect.Struct {
-		e = errors.New("input is not struct")
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	fields, e := getFieldMap(ctx, rv)
+	_, id, e = ed.schemaReg.GetSchemaByTopic(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	dataMap := make(map[string]interface{})
-	for k, v := range fields {
-		if v.GoType == "[]uint8" {
-			v.Value = string(v.Value.([]byte))
-		}
-		dataMap[k] = map[string]interface{}{v.AvroType: v.Value}
-	}
-
-	b, e = c.codec.BinaryFromNative(nil, dataMap)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
 	}
 
 	return
 }
 
-// GetSchemaID returns the schema ID for the codec's schema
-func (c avroCodec) GetSchemaID() int {
-	return c.schemaID
-}
-
-func (c avroCodec) binaryToMap(
-	ctx context.Context, b []byte) (data map[string]interface{}, e error) {
+func (ed avroEncoderDecoder) binaryToMap(
+	ctx context.Context, topic string, b []byte) (data map[string]interface{}, e error) {
 
 	lg := logger.New(ctx, "")
 
-	i, _, e := c.codec.NativeFromBinary(b)
+	codec, e := ed.getTopicCodec(ctx, topic)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	i, _, e := codec.NativeFromBinary(b)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
@@ -182,6 +243,25 @@ func (c avroCodec) binaryToMap(
 		e = errors.New("problem with message format")
 		lg.Error(logger.LogCatUncategorized, e)
 		return
+	}
+
+	return
+}
+
+func (ed avroEncoderDecoder) getTopicCodec(
+	ctx context.Context, topic string) (c *goavro.Codec, e error) {
+
+	lg := logger.New(ctx, "")
+
+	schema, _, e := ed.schemaReg.GetSchemaByTopic(ctx, topic)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	c, e = goavro.NewCodec(schema)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
 	}
 
 	return

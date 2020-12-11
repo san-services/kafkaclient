@@ -14,17 +14,17 @@ var (
 )
 
 // StructEncoder implements the sarama.Encoder interface
-type structEncoder struct {
+type saramaStructEncoder struct {
 	topic          string
-	encoderDecoder encoderDecoder
+	encoderDecoder EncoderDecoder
 	msgBinary      []byte
 	msgStruct      interface{}
 	ctx            context.Context
 }
 
 // NewStructEncoder constructs and returns a new StructEncoder
-func newStructEncoder(ctx context.Context, topic string,
-	msgStruct interface{}, ed encoderDecoder) (s *structEncoder, e error) {
+func newSaramaStructEncoder(ctx context.Context, topic string,
+	msgStruct interface{}, ed EncoderDecoder) (s *saramaStructEncoder, e error) {
 
 	lg := logger.New(ctx, "")
 
@@ -34,7 +34,7 @@ func newStructEncoder(ctx context.Context, topic string,
 		return
 	}
 
-	return &structEncoder{
+	return &saramaStructEncoder{
 		topic:          topic,
 		encoderDecoder: ed,
 		msgStruct:      msgStruct,
@@ -42,50 +42,47 @@ func newStructEncoder(ctx context.Context, topic string,
 }
 
 // Encode transforms and encodes the struct data
-func (s *structEncoder) Encode() (b []byte, e error) {
-	lg := logger.New(s.ctx, "")
+func (se *saramaStructEncoder) Encode() (b []byte, e error) {
+	lg := logger.New(se.ctx, "")
 
-	codec, e := s.encoderDecoder.GetCodec(s.ctx, s.topic)
+	initialBytes, e := se.encoderDecoder.Encode(se.ctx, se.topic, se.msgStruct)
+	be := newSaramaByteEncoder(se.ctx, se.topic, initialBytes, se.encoderDecoder)
 
-	b, e = codec.NativeToBinary(s.ctx, s.msgStruct)
+	b, e = be.Encode()
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
-
-	be := newByteEncoder(s.ctx, s.topic, b, s.encoderDecoder)
-	s.msgBinary, e = be.Encode()
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-	}
+	se.msgBinary = b
 
 	return
 }
 
-func (s *structEncoder) Length() int {
-	return 5 + len(s.msgBinary)
+// Length of schemaID and message content
+func (se *saramaStructEncoder) Length() int {
+	return 5 + len(se.msgBinary)
 }
 
 // ByteEncoder implements the sarama.Encoder interface
-type byteEncoder struct {
+type saramaByteEncoder struct {
 	schemaID  int
 	msgBinary []byte
 }
 
-func newByteEncoder(ctx context.Context,
-	topic string, msgBin []byte, ed encoderDecoder) (b *byteEncoder) {
+func newSaramaByteEncoder(ctx context.Context,
+	topic string, msgBin []byte, ed EncoderDecoder) (b *saramaByteEncoder) {
 
 	lg := logger.New(ctx, "")
 
-	codec, e := ed.GetCodec(ctx, topic)
+	schemaID, e := ed.GetSchemaID(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
 
-	return &byteEncoder{
+	return &saramaByteEncoder{
 		msgBinary: msgBin,
-		schemaID:  codec.GetSchemaID()}
+		schemaID:  schemaID}
 }
 
 // Encode finalizes the binary avro message, by adding bytes for required meta data.
@@ -94,7 +91,7 @@ func newByteEncoder(ctx context.Context,
 // message content needs to be serialized along with the Schema ID and Magic Byte.
 // Ref: https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format
 // Code ref: https://github.com/dangkaka/go-kafka-avro/blob/master/avroProducer.go
-func (b *byteEncoder) Encode() ([]byte, error) {
+func (b *saramaByteEncoder) Encode() ([]byte, error) {
 	var finalMsg []byte
 
 	// Confluent serialization format version number; currently always 0.
@@ -110,7 +107,7 @@ func (b *byteEncoder) Encode() ([]byte, error) {
 	return finalMsg, nil
 }
 
-// Length of schemaId and Content.
-func (b *byteEncoder) Length() int {
+// Length of schemaID and message content
+func (b *saramaByteEncoder) Length() int {
 	return 5 + len(b.msgBinary)
 }

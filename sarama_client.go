@@ -2,8 +2,11 @@ package kafkaclient
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"sync"
 
 	"github.com/Shopify/sarama"
@@ -14,16 +17,20 @@ const (
 	logPrefSarama = "DEBUG [sarama] "
 )
 
+var (
+	errInvalidProducer = errors.New("invalid producer type configured")
+	errMessageFormat   = errors.New("unsupported topic message format")
+	errMessageType     = errors.New("unsupported message type")
+)
+
+// SaramaClient implements the KafkaClient interface
 type SaramaClient struct {
-	config     *sarama.Config
-	topicConf  map[string]TopicConfig
-	topicNames []string
-	brokers    []string
-	groupID    string
-	group      sarama.ConsumerGroup
-	ready      chan bool
-	cancel     context.CancelFunc
-	ctx        context.Context
+	consumer    saramaConsumer
+	producer    saramaProducer
+	topics      map[string]TopicConfig
+	avroCodec   EncoderDecoder
+	jsonCodec   EncoderDecoder
+	stringCodec EncoderDecoder
 }
 
 func newSaramaClient(conf Config) (*SaramaClient, error) {
@@ -36,6 +43,88 @@ func newSaramaClient(conf Config) (*SaramaClient, error) {
 
 // StartConsume starts consuming kafka topic messages
 func (c *SaramaClient) StartConsume() (e error) {
+	return c.consumer.startConsume()
+}
+
+// CancelConsume call the context's context.cancelFunc in order to stop the
+// process of message consumption
+func (c *SaramaClient) CancelConsume() (e error) {
+	c.consumer.cancel()
+	return nil
+}
+
+// ProduceMessage creates/encodes a message and sends it to the specified topic
+func (c *SaramaClient) ProduceMessage(
+	ctx context.Context, topic string, key string, msg interface{}) (e error) {
+
+	lg := logger.New(ctx, "")
+
+	var saramaEncoder sarama.Encoder
+	var codec EncoderDecoder
+
+	topicConf := c.topics[topic]
+
+	switch topicConf.MessageType {
+	case MessageFormatAvro:
+		codec = c.avroCodec
+		break
+	case MessageFormatJSON:
+		codec = c.jsonCodec
+		break
+	case MessageFormatString:
+		codec = c.stringCodec
+		break
+	default:
+		e = errMessageFormat
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	switch msg.(type) {
+	case string:
+		saramaEncoder = sarama.StringEncoder(msg.(string))
+		break
+	case []byte:
+		saramaEncoder = newSaramaByteEncoder(ctx, topic, msg.([]byte), codec)
+		break
+	case int32, int64, float32, float64:
+		saramaEncoder = sarama.StringEncoder(fmt.Sprint(msg))
+	default:
+		if reflect.ValueOf(msg).Kind() == reflect.Struct {
+			saramaEncoder, e = newSaramaStructEncoder(ctx, topic, msg, codec)
+			if e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+				return
+			}
+			break
+		}
+		e = errMessageType
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	e = c.producer.produceMessage(ctx, topic, key, saramaEncoder)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	return
+}
+
+// must implement sarama.ConsumerGroupHandler
+type saramaConsumer struct {
+	groupID    string
+	group      sarama.ConsumerGroup
+	config     *sarama.Config
+	topicConf  map[string]TopicConfig
+	topicNames []string
+	brokers    []string
+	ready      chan bool
+	cancel     context.CancelFunc
+	ctx        context.Context
+}
+
+func (c *saramaConsumer) startConsume() (e error) {
 	lg := logger.New(c.ctx, "")
 
 	c.group, e = sarama.NewConsumerGroup(
@@ -78,28 +167,23 @@ func (c *SaramaClient) StartConsume() (e error) {
 			infoConsumerTerm("context cancelled"))
 	}
 
-	c.CancelConsume()
+	c.cancel()
 	wg.Wait()
 
-	if e := c.Close(); e != nil {
+	if e := c.close(); e != nil {
 		lg.Fatal(logger.LogCatUncategorized, errConsumerClose(e))
 	}
 
 	return
 }
 
-// CancelConsume call the context's context.cancelFunc in order to stop the
-// process of message consumption
-func (c *SaramaClient) CancelConsume() (e error) {
-	c.cancel()
-	return nil
-}
-
 // ConsumeClaim read ConsumerGroupClaim's Messages() in a loop.
-// It handles consuming and processing or delegating prosessing of topic messages.
+// Method in sarama.ConsumerGroupHandler interface.
+//
+// Handles consuming and processing or delegating prosessing of topic messages.
 // This method is called within a goroutine:
 // https://github.com/Shopify/sarama/blob/master/consumer_group.go#L27-L29
-func (c *SaramaClient) ConsumeClaim(
+func (c *saramaConsumer) ConsumeClaim(
 	session sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim) (e error) {
 
@@ -126,20 +210,22 @@ func (c *SaramaClient) ConsumeClaim(
 	}
 }
 
-// Setup is run at the beginning of a new consumer session, before ConsumeClaim
-func (c *SaramaClient) Setup(sarama.ConsumerGroupSession) (e error) {
+// Setup is run at the beginning of a new consumer session, before ConsumeClaim.
+// Method in sarama.ConsumerGroupHandler interface.
+func (c *saramaConsumer) Setup(sarama.ConsumerGroupSession) (e error) {
 	// mark the consumer as ready
 	close(c.ready)
 	return nil
 }
 
-// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (c *SaramaClient) Cleanup(sarama.ConsumerGroupSession) (e error) {
+// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited.
+// Method in sarama.ConsumerGroupHandler interface.
+func (c *saramaConsumer) Cleanup(sarama.ConsumerGroupSession) (e error) {
 	return nil
 }
 
 // Close stops the ConsumerGroup and detaches any running sessions
-func (c *SaramaClient) Close() (e error) {
+func (c *saramaConsumer) close() (e error) {
 	lg := logger.New(c.ctx, "")
 
 	e = c.group.Close()
@@ -150,7 +236,32 @@ func (c *SaramaClient) Close() (e error) {
 	return
 }
 
-// ProduceMessage creates/encodes a message and sends it to the specified topic
-func (c *SaramaClient) ProduceMessage(ctx context.Context, topic string, key string, msg interface{}) (e error) {
+type saramaProducer struct {
+	producer       interface{}
+	encoderDecoder EncoderDecoder
+}
+
+func (p *saramaProducer) produceMessage(
+	ctx context.Context, topic string, key string, encoder sarama.Encoder) (e error) {
+
+	lg := logger.New(ctx, "")
+
+	msg := &sarama.ProducerMessage{
+		Topic: topic,
+		Key:   sarama.StringEncoder(key),
+		Value: encoder}
+
+	switch p.producer.(type) {
+	case sarama.SyncProducer:
+		_, _, e = (p.producer.(sarama.SyncProducer)).SendMessage(msg)
+		if e != nil {
+			lg.Error(logger.LogCatUncategorized, e)
+		}
+	case sarama.AsyncProducer:
+		(p.producer.(sarama.AsyncProducer)).Input() <- msg
+	default:
+		return errInvalidProducer
+	}
+
 	return
 }

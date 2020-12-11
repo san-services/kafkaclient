@@ -10,11 +10,14 @@ import (
 
 type SaramaMessage struct {
 	m              *sarama.ConsumerMessage
-	encoderDecoder encoderDecoder
+	encoderDecoder EncoderDecoder
 }
 
 // newMessage constructs and returns a new Message struct
-func newSaramaMessage(m *sarama.ConsumerMessage, ed encoderDecoder) (msg ConsumerMessage) {
+func newSaramaMessage(
+	m *sarama.ConsumerMessage,
+	ed EncoderDecoder) (msg ConsumerMessage) {
+
 	msg = SaramaMessage{m: m, encoderDecoder: ed}
 	return
 }
@@ -23,13 +26,7 @@ func newSaramaMessage(m *sarama.ConsumerMessage, ed encoderDecoder) (msg Consume
 func (m SaramaMessage) Unmarshall(ctx context.Context, native interface{}) (e error) {
 	lg := logger.New(ctx, "")
 
-	c, e := m.encoderDecoder.GetCodec(ctx, m.m.Topic)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	e = c.BinaryToNative(ctx, m.m.Value, native)
+	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 	}
