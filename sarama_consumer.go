@@ -2,23 +2,43 @@ package kafkaclient
 
 import (
 	"context"
+	"crypto/tls"
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
 	logger "github.com/disturb16/apilogger"
+	"github.com/hashicorp/go-uuid"
 )
 
 // must implement sarama.ConsumerGroupHandler
 type saramaConsumer struct {
-	groupID    string
-	group      sarama.ConsumerGroup
-	config     *sarama.Config
-	topicConf  map[string]TopicConfig
-	topicNames []string
-	brokers    []string
-	ready      chan bool
-	cancel     context.CancelFunc
-	ctx        context.Context
+	groupID      string
+	group        sarama.ConsumerGroup
+	config       *sarama.Config
+	topicConf    map[string]TopicConfig
+	topicNames   []string
+	brokers      []string
+	ready        chan bool
+	failMessages chan failedMessage
+	cancel       context.CancelFunc
+	ctx          context.Context
+}
+
+func newSaramaConsumer(saramaConf *sarama.Config,
+	groupID string, topicConf map[string]TopicConfig, topicNames []string,
+	brokers []string) (c saramaConsumer, e error) {
+
+	consumerCtx, cancel := context.WithCancel(context.Background())
+
+	return saramaConsumer{
+		groupID:    groupID,
+		config:     saramaConf,
+		topicConf:  topicConf,
+		topicNames: topicNames,
+		brokers:    brokers,
+		cancel:     cancel,
+		ctx:        consumerCtx}, nil
 }
 
 func (c *saramaConsumer) startConsume() (e error) {
@@ -103,6 +123,10 @@ func (c *saramaConsumer) ConsumeClaim(
 			e = conf.MessageProcessor(session.Context(), m)
 			if e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
+
+				if conf.FailedProcessingTopic != "" {
+					c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e)
+				}
 				continue
 			}
 
@@ -134,6 +158,44 @@ func (c *saramaConsumer) close() (e error) {
 	e = c.group.Close()
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, errConsumerClose(e))
+	}
+
+	return
+}
+
+func getSaramaConf(ctx context.Context, kafkaVersion string,
+	groupID string, fromOldest bool, tls *tls.Config) (c *sarama.Config, e error) {
+
+	lg := logger.New(ctx, "")
+
+	c = sarama.NewConfig()
+
+	version, e := sarama.ParseKafkaVersion(kafkaVersion)
+	if e != nil {
+		e = errKafkaVersion(kafkaVersion)
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	id, e := uuid.GenerateUUID()
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	c.Version = version
+	c.ClientID = groupID + "_" + string(id)
+	c.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+	c.Consumer.Offsets.AutoCommit.Enable = false
+	c.Consumer.Group.Session.Timeout = 15 * time.Second
+
+	if fromOldest {
+		c.Consumer.Offsets.Initial = sarama.OffsetOldest
+	}
+
+	if tls != nil {
+		c.Net.TLS.Enable = true
+		c.Net.TLS.Config = tls
 	}
 
 	return

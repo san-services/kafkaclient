@@ -13,7 +13,7 @@ var (
 	errPtrRequired = errors.New("pointer to struct required")
 )
 
-// StructEncoder implements the sarama.Encoder interface
+// saramaStructEncoder implements the sarama.Encoder interface
 type saramaStructEncoder struct {
 	topic          string
 	encoderDecoder EncoderDecoder
@@ -22,7 +22,7 @@ type saramaStructEncoder struct {
 	ctx            context.Context
 }
 
-// NewStructEncoder constructs and returns a new StructEncoder
+// newSaramaStructEncoder constructs and returns a new saramaStructEncoder
 func newSaramaStructEncoder(ctx context.Context, topic string,
 	msgStruct interface{}, ed EncoderDecoder) (s *saramaStructEncoder, e error) {
 

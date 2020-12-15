@@ -18,8 +18,9 @@ const (
 
 // KafkaClient is an interface describing the primary uses of this library
 type KafkaClient interface {
-	StartConsume() error
+	StartConsume(ctx context.Context) error
 	CancelConsume() error
+	handleProcessingFail() error
 	ProduceMessage(ctx context.Context, topic string, key string, msg interface{}) error
 }
 

@@ -2,10 +2,8 @@ package kafkaclient
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
-	"reflect"
 
 	"github.com/Shopify/sarama"
 	logger "github.com/disturb16/apilogger"
@@ -17,25 +15,58 @@ const (
 
 // SaramaClient implements the KafkaClient interface
 type SaramaClient struct {
-	consumer    saramaConsumer
-	producer    saramaProducer
-	topics      map[string]TopicConfig
-	avroCodec   EncoderDecoder
-	jsonCodec   EncoderDecoder
-	stringCodec EncoderDecoder
+	consumer saramaConsumer
+	producer saramaProducer
 }
 
-func newSaramaClient(conf Config) (*SaramaClient, error) {
+func newSaramaClient(conf Config) (c *SaramaClient, e error) {
+	ctx := context.Background()
+	lg := logger.New(ctx, "")
+
 	if conf.Debug {
 		sarama.Logger = log.New(os.Stdout, logPrefSarama, log.LstdFlags)
 	}
 
-	return &SaramaClient{}, nil
+	sc, e := getSaramaConf(ctx, conf.KafkaVersion,
+		conf.ConsumerGroupID, conf.ReadFromOldest, conf.TLS)
+
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	consumer, e := newSaramaConsumer(sc, conf.ConsumerGroupID,
+		conf.TopicMap(), conf.TopicNames(), conf.Brokers)
+
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	producer, e := newSaramaProducer(ctx,
+		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc)
+
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	return &SaramaClient{
+		consumer: consumer,
+		producer: producer,
+	}, nil
 }
 
 // StartConsume starts consuming kafka topic messages
-func (c *SaramaClient) StartConsume() (e error) {
-	return c.consumer.startConsume()
+func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
+	lg := logger.New(ctx, "")
+
+	e = c.consumer.startConsume()
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	return
 }
 
 // CancelConsume call the context's context.cancelFunc in order to stop the
@@ -45,57 +76,34 @@ func (c *SaramaClient) CancelConsume() (e error) {
 	return nil
 }
 
+func (c *SaramaClient) handleProcessingFail() (e error) {
+	ctx := context.Background()
+	lg := logger.New(ctx, "")
+
+	for {
+		select {
+		case fail := <-c.consumer.failMessages:
+			retryMsg := NewRetryTopicMessage(
+				fail.msg.Topic(), fail.msg.Partition(),
+				fail.msg.Offset(), fail.msg.Value(), fail.e)
+
+			e = c.producer.produceMessage(
+				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
+
+			if e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+			}
+		}
+	}
+}
+
 // ProduceMessage creates/encodes a message and sends it to the specified topic
 func (c *SaramaClient) ProduceMessage(
 	ctx context.Context, topic string, key string, msg interface{}) (e error) {
 
 	lg := logger.New(ctx, "")
 
-	var saramaEncoder sarama.Encoder
-	var codec EncoderDecoder
-
-	topicConf := c.topics[topic]
-
-	switch topicConf.MessageType {
-	case MessageFormatAvro:
-		codec = c.avroCodec
-		break
-	case MessageFormatJSON:
-		codec = c.jsonCodec
-		break
-	case MessageFormatString:
-		codec = c.stringCodec
-		break
-	default:
-		e = errMessageFormat
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	switch msg.(type) {
-	case string:
-		saramaEncoder = sarama.StringEncoder(msg.(string))
-		break
-	case []byte:
-		saramaEncoder = newSaramaByteEncoder(ctx, topic, msg.([]byte), codec)
-		break
-	case int32, int64, float32, float64:
-		saramaEncoder = sarama.StringEncoder(fmt.Sprint(msg))
-	default:
-		if reflect.ValueOf(msg).Kind() == reflect.Struct {
-			saramaEncoder, e = newSaramaStructEncoder(ctx, topic, msg, codec)
-			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
-				return
-			}
-			break
-		}
-		e = errMessageType
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	e = c.producer.produceMessage(ctx, topic, key, saramaEncoder)
+	e = c.producer.produceMessage(ctx, topic, key, msg)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 	}

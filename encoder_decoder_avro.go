@@ -101,6 +101,7 @@ func (ed avroEncoderDecoder) Encode(
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
+		return
 	}
 
 	b, e = codec.BinaryFromNative(nil, dataMap)
@@ -163,19 +164,24 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	}
 	rv = rv.Elem()
 
+	// convert binary message into a map of data
 	data, e := ed.binaryToMap(ctx, topic, b)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
 
+	// get metadata for all fields in target struct
 	fields, e := getFieldMap(ctx, rv)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
 
+	// range through data map and insert data into
+	// target struct, field-by-field
 	for k, v := range data {
+		// each value in the map should be an inner map
 		v, ok := v.(map[string]interface{})
 		if !ok {
 			e = errMessageFmt
@@ -183,21 +189,27 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 			return
 		}
 
+		// get field with tag name == key in the parent data map
 		fieldInfo := fields[k]
+		// get key for inner map
 		mapKey := fieldInfo.AvroType
+		// get field value using inner map key
 		mapVal := v[mapKey]
 
+		// get appropriate target field
 		f := rv.FieldByName(fieldInfo.Name)
 
-		targetFieldType := f.Type()
+		// get field type and intended value type, check they match
+		tarFieldType := f.Type()
 		mapValType := reflect.TypeOf(mapVal)
 
-		if targetFieldType != mapValType {
-			e = errUnmarshallFieldType(fieldInfo.Name, targetFieldType, mapValType)
+		if tarFieldType != mapValType {
+			e = errUnmarshallFieldType(fieldInfo.Name, tarFieldType, mapValType)
 			lg.Error(logger.LogCatUncategorized, e)
 			return
 		}
 
+		// set field value
 		if f.IsValid() && f.CanSet() {
 			f.Set(reflect.ValueOf(mapVal))
 		}
@@ -279,13 +291,13 @@ func newField(name string, val interface{}, goType string, avroType string, tag 
 func getFieldMap(ctx context.Context,
 	rv reflect.Value) (m map[string]field, e error) {
 
-	lg := logger.New(ctx, "")
+	// lg := logger.New(ctx, "")
 
-	if rv.IsNil() {
-		e = errFieldValNil
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	// if rv.Is() {
+	// 	e = errFieldValNil
+	// 	lg.Error(logger.LogCatUncategorized, e)
+	// 	return
+	// }
 
 	m = make(map[string]field)
 

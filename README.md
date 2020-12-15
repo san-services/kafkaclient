@@ -1,30 +1,55 @@
 # kafkaclient
-Golang kafka package to simplify te consumer and producer usage
 
-## Install
-`go get github.com/san-services/kafkaclient`
+An overly-opinionated library to simplify interactions with existing go/kafka libraries.
 
-## Consumer
-```go
-func onMessageReceived(topic string, message string){
-  // do stuff with message
+## Supported base libraries
+
+- shopify/sarama (implemented)
+- segmentio/kafka-go (planned)
+
+## Use
+
+```
+func main()
+    topics := []kafkaclient.TopicConfig{
+		kafkaclient.NewTopicConfig(
+			"my_topic", 
+            kafkaclient.MessageFormatAvro,
+			5, 
+            "my_topic_retry",
+			"", 
+            0, 
+            processTestTopic)}
+
+	config, e := kafkaclient.NewConfig(ctx, 
+        "2.5.0", 
+        []string{"127.0.0.1"}, 
+        topics, 
+        "", 
+        kafkaclient.ConsumerTypeGroup,
+		"test_consumer", 
+        kafkaclient.ProducerTypeAsync, 
+        true, 
+        &tls.Config{}, 
+        true)
+
+	if e != nil {
+		t.Error(e)
+	}
+
+	kc, e := kafkaclient.New(BaseSarama, config)
+	if e != nil {
+		t.Error(e)
+		return
+	}
+
+	e = kc.StartConsume(ctx)
+	if e != nil {
+		t.Error(e)
+	}
 }
 
-
-// listen to test topic
-client := kafkaclient.New("localhost:9092", "group1", onMessageReceived)
-go client.ListenToTopic(context.Background(), "test")
-```
-
-## Producer
-
-```go
-client := kafkaclient.New("localhost:9092", "producerGroup", nil)
-
-// produce message to test topic
-err := client.ProduceToTopic("test", "this is a test message")
-
-if err != nil {
-  // handle error...
+func processTestTopic(ctx context.Context, msg kafkaclient.ConsumerMessage) (e error) {
+	return
 }
 ```
