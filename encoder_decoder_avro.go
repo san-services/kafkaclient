@@ -156,7 +156,14 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	rv := reflect.ValueOf(target)
+	var rv reflect.Value
+
+	if _, ok := target.(reflect.Value); ok {
+		rv = target.(reflect.Value)
+	} else {
+		rv = reflect.ValueOf(target)
+	}
+	
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		e = errPtrRequired
 		lg.Error(logger.LogCatUncategorized, e)
@@ -191,16 +198,31 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 		// get field with tag name == key in the parent data map
 		fieldInfo := fields[k]
+		// get appropriate target field
+		f := rv.FieldByName(fieldInfo.Name)
+		// get field type and intended value type, check they match
+		tarFieldType := f.Type()
+
+		// handle complex type/value (recursive decode)
+		if fieldInfo.TopicTag != "" {
+			nestedMsg := reflect.New(tarFieldType)
+			e = ed.Decode(ctx, fieldInfo.TopicTag, v["bytes"].([]byte), nestedMsg)
+			if e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+				return
+			}
+
+			if f.IsValid() && f.CanSet() {
+				f.Set(nestedMsg.Elem())
+			}
+			return
+		}
+
+		// handle primitive type/value
 		// get key for inner map
 		mapKey := fieldInfo.AvroType
 		// get field value using inner map key
 		mapVal := v[mapKey]
-
-		// get appropriate target field
-		f := rv.FieldByName(fieldInfo.Name)
-
-		// get field type and intended value type, check they match
-		tarFieldType := f.Type()
 		mapValType := reflect.TypeOf(mapVal)
 
 		if tarFieldType != mapValType {
@@ -282,22 +304,21 @@ type field struct {
 	GoType   string
 	AvroType string
 	AvroTag  string
+	TopicTag string
 }
 
-func newField(name string, val interface{}, goType string, avroType string, tag string) field {
-	return field{Name: name, Value: val, GoType: goType, AvroType: avroType, AvroTag: tag}
+func newField(name string, val interface{},
+	goType string, avroType string, avroTag string,
+	topicTag string) field {
+
+	return field{
+		Name: name, Value: val,
+		GoType: goType, AvroType: avroType,
+		AvroTag: avroTag, TopicTag: topicTag}
 }
 
 func getFieldMap(ctx context.Context,
 	rv reflect.Value) (m map[string]field, e error) {
-
-	// lg := logger.New(ctx, "")
-
-	// if rv.Is() {
-	// 	e = errFieldValNil
-	// 	lg.Error(logger.LogCatUncategorized, e)
-	// 	return
-	// }
 
 	m = make(map[string]field)
 
@@ -308,10 +329,11 @@ func getFieldMap(ctx context.Context,
 	for i := 0; i < rv.NumField(); i++ {
 		fName := rv.Type().Field(i).Name
 		fType := rv.Field(i).Type().String()
-		fTag := rv.Type().Field(i).Tag.Get("avro")
+		aTag := rv.Type().Field(i).Tag.Get("avro")
+		tTag := rv.Type().Field(i).Tag.Get("topic")
 		fVal := rv.Field(i).Interface()
 
-		m[fTag] = newField(fName, fVal, fType, typeMap[fType], fTag)
+		m[aTag] = newField(fName, fVal, fType, typeMap[fType], aTag, tTag)
 	}
 
 	return
