@@ -115,41 +115,78 @@ func (ed avroEncoderDecoder) Encode(
 
 // Decode converts a binary message to a native go struct
 //
-// Target struct fields should have avro tags matching schema field names, e.g.:
+// Target struct fields should have avro tags matching schema field names.
+// Complex target fields, which are structs relating to another topic schema,
+// should include a "topic" tag to help determine the schema required to decode them.
+//
+//  e.g.:
 //
 //  type Thing struct {
 //		ID    int64  `avro:"ID"`
 //		Name  string `avro:"NAME"`
 //  }
 //
-//  matches
+//  matches the following schema:
 //
-//  schema := `
-//		{
-//			"type": "record",
-//          "fields": [
-//	            {
-//		            "name": "ID",
-//		            "type": [
-//			             "null",
-//			             "long"
-//		             ],
-//		            "default": null
-//	            },
-//	            {
-//		            "name": "NAME",
-//		            "type": [
-//			             "null",
-//			             "string"
-//		             ],
-//		            "default": null
-//	            },
-//			 ]
-//       }
-//  `
+//	{
+//		"type": "record",
+//      "fields": [
+//	        {
+//		        "name": "ID",
+//		        "type": [
+//			         "null",
+//			         "long"
+//		         ],
+//		        "default": null
+//	        },
+//	        {
+//		        "name": "NAME",
+//		        "type": [
+//			         "null",
+//			         "string"
+//		         ],
+//		        "default": null
+//	        },
+//	    ]
+//  }
 //
-// Also note the typemap above when creating structs to
-// either encode as avro or unmarshall avro message data into.
+//  and
+//
+//	type ThingRetry struct {
+//		ErrorMessage     string  `avro:"ERROR_MESSAGE"`
+//  	OriginalMessage  []byte  `avro:"ORIGINAL_MESSAGE"`
+//  }
+//
+//	and
+//
+//	type ThingRetry struct {
+//		ErrorMessage     string        `avro:"ERROR_MESSAGE"`
+//  	OriginalMessage  TopicMessage  `avro:"ORIGINAL_MESSAGE". topic:"new_things"`
+//  }
+//
+//  match the following schema:
+//
+//	{
+//		"type": "record",
+//      "fields": [
+//	        {
+//		        "name": "ERROR_MESSAGE",
+//		        "type": [
+//			         "null",
+//			         "string"
+//		         ],
+//		        "default": null
+//	        },
+//	        {
+//		        "name": "ORIGINAL_MESSAGE",
+//		        "type": [
+//			         "null",
+//			         "bytes"
+//		         ],
+//		        "default": null
+//	        },
+//	    ]
+//  }
 //
 func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	topic string, b []byte, target interface{}) (e error) {
@@ -163,7 +200,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	} else {
 		rv = reflect.ValueOf(target)
 	}
-	
+
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		e = errPtrRequired
 		lg.Error(logger.LogCatUncategorized, e)
@@ -206,7 +243,15 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 		// handle complex type/value (recursive decode)
 		if fieldInfo.TopicTag != "" {
 			nestedMsg := reflect.New(tarFieldType)
-			e = ed.Decode(ctx, fieldInfo.TopicTag, v["bytes"].([]byte), nestedMsg)
+
+			nestedBytes, ok := v["bytes"].([]byte)
+			if !ok {
+				e = errMessageFmt
+				lg.Error(logger.LogCatUncategorized, e)
+				return
+			}
+
+			e = ed.Decode(ctx, fieldInfo.TopicTag, nestedBytes, nestedMsg)
 			if e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
 				return
