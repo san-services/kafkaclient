@@ -5,62 +5,7 @@ import (
 	"testing"
 )
 
-var (
-	testTopicName   = "test"
-	testTopicSchema = `{
-		"type": "record",
-		"name": "testSchema",
-		"fields": [
-			{
-				"name": "ID",
-				"type": [
-					"null",
-					"long"
-				],
-				"default": null
-			},
-			{
-				"name": "NAME",
-				"type": [
-					"null",
-					"string"
-				],
-				"default": null
-			}
-		]
-	}`
-	retryTopicName   = "test_retry_1"
-	retryTopicSchema = `{
-		"type": "record",
-		"name": "retrySchema",
-		"fields": [
-			{
-				"name": "ERROR_MESSAGE",
-				"type": [
-					"null",
-					"string"
-				],
-				"default": null
-			},
-			{
-				"name": "ORIGINAL_TOPIC",
-				"type": [
-					"null",
-					"string"
-				],
-				"default": null
-			},
-			{
-				"name": "ORIGINAL_MESSAGE",
-				"type": [
-					"null",
-					"bytes"
-				],
-				"default": null
-			}
-		]
-	}`
-)
+
 
 func TestAvroDecode(t *testing.T) {
 	ctx := context.Background()
@@ -149,30 +94,3 @@ type retryTopicMsgComplex struct {
 	OriginalMessage testTopicMessage `avro:"ORIGINAL_MESSAGE" topic:"test"`
 }
 
-type mockSchemaReg struct {
-}
-
-func (s mockSchemaReg) GetSchemaByID(
-	ctx context.Context, id int) (schemaID string, e error) {
-
-	return
-}
-
-func (s mockSchemaReg) GetSchemaByTopic(
-	ctx context.Context, topic string) (schema string, schemaID int, e error) {
-
-	switch topic {
-	case testTopicName:
-		return testTopicSchema, 1, nil
-	case retryTopicName:
-		return retryTopicSchema, 2, nil
-	default:
-		return
-	}
-}
-
-func (s mockSchemaReg) RegisterSchema(
-	ctx context.Context, topic string) (schemaID int, e error) {
-
-	return
-}
