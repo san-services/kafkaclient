@@ -19,7 +19,7 @@ type SaramaClient struct {
 	producer saramaProducer
 }
 
-func newSaramaClient(conf Config) (c *SaramaClient, e error) {
+func newSaramaClient(conf Config) (c KafkaClient, e error) {
 	ctx := context.Background()
 	lg := logger.New(ctx, "")
 
@@ -57,7 +57,7 @@ func newSaramaClient(conf Config) (c *SaramaClient, e error) {
 	}, nil
 }
 
-// StartConsume starts consuming kafka topic messages
+// StartConsume starts consuming configured kafka topic messages
 func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
@@ -69,8 +69,8 @@ func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	return
 }
 
-// CancelConsume call the context's context.cancelFunc in order to stop the
-// process of message consumption
+// CancelConsume call the context's context.cancelFunc 
+// in order to stop the process of message consumption
 func (c *SaramaClient) CancelConsume() (e error) {
 	c.consumer.cancel()
 	return nil

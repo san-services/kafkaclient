@@ -26,6 +26,9 @@ var (
 	errInvalidProducer = errors.New("invalid producer type configured")
 	errMessageFormat   = errors.New("unsupported topic message format configured")
 	errMessageType     = errors.New("unsupported message data type")
+	errCommit          = func(e error) error { return fmt.Errorf("error committing offset - %s", e.Error()) }
+	errSetOffset       = func(e error) error { return fmt.Errorf("error setting reader offset - %s", e.Error()) }
+	errMsgRead         = func(e error) error { return fmt.Errorf("error reading message - %s", e.Error()) }
 
 	// encode/decode
 	errMessageFmt          = errors.New("encode/decode - problem with message format")
