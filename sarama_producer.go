@@ -19,9 +19,13 @@ type saramaProducer struct {
 
 func newSaramaProducer(ctx context.Context,
 	prodType producerType, brokers []string, topicConf map[string]TopicConfig,
-	saramaConf *sarama.Config) (p saramaProducer, e error) {
+	saramaConf *sarama.Config, schemaReg schemaRegistry) (p saramaProducer, e error) {
 
 	lg := logger.New(ctx, "")
+
+	p.avroCodec = newAvroEncDec(schemaReg)
+	p.jsonCodec = newJSONEncDec(schemaReg)
+	p.stringCodec = newStringEncDec()
 
 	switch prodType {
 	case ProducerTypeSync:

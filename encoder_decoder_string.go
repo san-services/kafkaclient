@@ -3,12 +3,11 @@ package kafkaclient
 import "context"
 
 type strEncoderDecoder struct {
-	schemaReg schemaRegistry
 }
 
 // newJSONEncDec constructs and returns a new JSON message EncoderDecoder
-func newStringEncDec(s schemaRegistry) EncoderDecoder {
-	return &avroEncoderDecoder{schemaReg: s}
+func newStringEncDec() EncoderDecoder {
+	return &avroEncoderDecoder{}
 }
 
 func (ed strEncoderDecoder) Encode(

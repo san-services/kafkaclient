@@ -43,8 +43,14 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
+	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
 	producer, e := newSaramaProducer(ctx,
-		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc)
+		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc, sr)
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
@@ -69,7 +75,7 @@ func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	return
 }
 
-// CancelConsume call the context's context.cancelFunc 
+// CancelConsume call the context's context.cancelFunc
 // in order to stop the process of message consumption
 func (c *SaramaClient) CancelConsume() (e error) {
 	c.consumer.cancel()

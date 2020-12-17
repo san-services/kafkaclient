@@ -2,6 +2,8 @@ package kafkaclient
 
 import (
 	"context"
+	"crypto/tls"
+	"time"
 
 	logger "github.com/disturb16/apilogger"
 	"github.com/segmentio/kafka-go"
@@ -10,36 +12,45 @@ import (
 type kafkagoConsumer struct {
 	gen          *kafka.Generation
 	groupID      string
+	group        *kafka.ConsumerGroup
 	brokers      []string
 	topicNames   []string
 	topicConfig  map[string]TopicConfig
+	dialer       *kafka.Dialer
 	failMessages chan failedMessage
 }
 
-func newKafkagoConsumer(groupID string, brokers []string,
-	topicNames []string, topicConf map[string]TopicConfig) kafkagoConsumer {
+func newKafkagoConsumer(groupID string, brokers []string, topicNames []string,
+	topicConf map[string]TopicConfig, tls *tls.Config) kafkagoConsumer {
+
+	d := &kafka.Dialer{
+		Timeout:   10 * time.Second,
+		DualStack: true,
+		TLS:       tls}
 
 	return kafkagoConsumer{
 		groupID:     groupID,
 		brokers:     brokers,
 		topicNames:  topicNames,
-		topicConfig: topicConf}
+		topicConfig: topicConf,
+		dialer:      d}
 }
 
 func (c *kafkagoConsumer) startConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
-	group, e := kafka.NewConsumerGroup(kafka.ConsumerGroupConfig{
+	c.group, e = kafka.NewConsumerGroup(kafka.ConsumerGroupConfig{
 		ID:          c.groupID,
 		Brokers:     c.brokers,
 		Topics:      c.topicNames,
-		StartOffset: kafka.LastOffset})
+		StartOffset: kafka.LastOffset,
+		Dialer:      c.dialer})
 
 	for {
 		// get the next (latest) generation of a consumer group - every time
 		// a member (service instance in our case) enters or exits the group,
 		// a new generation occurs, which results in a new *kafka.Generation instance
-		c.gen, e = group.Next(context.TODO())
+		c.gen, e = c.group.Next(context.TODO())
 		if e != nil {
 			lg.Error(logger.LogCatUncategorized, e)
 			break
