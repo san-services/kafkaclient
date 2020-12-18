@@ -2,7 +2,6 @@ package kafkaclient
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Shopify/sarama"
 	logger "github.com/disturb16/apilogger"
@@ -34,13 +33,6 @@ func (m SaramaMessage) Unmarshall(ctx context.Context, native interface{}) (e er
 	}
 
 	return
-}
-
-// InfoEvent constructs and returns a loggable event relating to the message
-func (m SaramaMessage) InfoEvent(event string) string {
-	return fmt.Sprintf(
-		"%s: topic[%s], partition[%d], offset[%d]",
-		event, m.m.Topic, m.m.Partition, m.m.Offset)
 }
 
 // Topic returns the message topic

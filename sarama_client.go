@@ -2,11 +2,14 @@ package kafkaclient
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
 	"os"
+	"time"
 
 	"github.com/Shopify/sarama"
 	logger "github.com/disturb16/apilogger"
+	"github.com/hashicorp/go-uuid"
 )
 
 const (
@@ -112,6 +115,44 @@ func (c *SaramaClient) ProduceMessage(
 	e = c.producer.produceMessage(ctx, topic, key, msg)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	return
+}
+
+func getSaramaConf(ctx context.Context, kafkaVersion string,
+	groupID string, fromOldest bool, tls *tls.Config) (c *sarama.Config, e error) {
+
+	lg := logger.New(ctx, "")
+
+	c = sarama.NewConfig()
+
+	version, e := sarama.ParseKafkaVersion(kafkaVersion)
+	if e != nil {
+		e = errKafkaVersion(kafkaVersion)
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	id, e := uuid.GenerateUUID()
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	c.Version = version
+	c.ClientID = groupID + "_" + string(id)
+	c.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+	c.Consumer.Offsets.AutoCommit.Enable = false
+	c.Consumer.Group.Session.Timeout = 15 * time.Second
+
+	if fromOldest {
+		c.Consumer.Offsets.Initial = sarama.OffsetOldest
+	}
+
+	if tls != nil {
+		c.Net.TLS.Enable = true
+		c.Net.TLS.Config = tls
 	}
 
 	return

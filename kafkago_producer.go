@@ -11,21 +11,15 @@ import (
 )
 
 type kafkagoProducer struct {
-	writers     map[string]*kafka.Writer
-	topicConf   map[string]TopicConfig
-	avroCodec   EncoderDecoder
-	jsonCodec   EncoderDecoder
-	stringCodec EncoderDecoder
+	writers   map[string]*kafka.Writer
+	topicConf map[string]TopicConfig
 }
 
-func newKafkaGoProducer(topicNames []string,
-	topicConf map[string]TopicConfig, brokers []string,
+func newKafkaGoProducer(prodType producerType,
+	topicNames []string, topicConf map[string]TopicConfig, brokers []string,
 	tls *tls.Config, schemaReg schemaRegistry) (p kafkagoProducer) {
 
 	p.topicConf = topicConf
-	p.avroCodec = newAvroEncDec(schemaReg)
-	p.jsonCodec = newJSONEncDec(schemaReg)
-	p.stringCodec = newStringEncDec()
 
 	transport := &kafka.Transport{
 		TLS: tls,
@@ -35,11 +29,17 @@ func newKafkaGoProducer(topicNames []string,
 		}).DialContext}
 
 	for _, t := range topicNames {
-		p.writers[t] = &kafka.Writer{
+		w := &kafka.Writer{
 			Addr:      kafka.TCP(brokers[0]),
 			Topic:     t,
 			Balancer:  &kafka.RoundRobin{},
 			Transport: transport}
+
+		if prodType == ProducerTypeAsync {
+			w.Async = true
+			w.Completion = p.handleAsyncResponses
+		}
+		p.writers[t] = w
 	}
 
 	return
@@ -51,17 +51,7 @@ func (p *kafkagoProducer) produceMessage(
 	lg := logger.New(ctx, "")
 
 	topicConf := p.topicConf[topic]
-	var msgbytes []byte
-
-	switch topicConf.MessageType {
-	case MessageFormatAvro:
-		msgbytes, e = p.avroCodec.Encode(ctx, topic, msg)
-	case MessageFormatJSON:
-		msgbytes, e = p.jsonCodec.Encode(ctx, topic, msg)
-	case MessageFormatString:
-		msgbytes, e = p.stringCodec.Encode(ctx, topic, msg)
-	default:
-	}
+	msgbytes, e := topicConf.MessageEncoderDecoder.Encode(ctx, topic, msg)
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
@@ -79,4 +69,17 @@ func (p *kafkagoProducer) produceMessage(
 	}
 
 	return errNotImpl
+}
+
+func (p *kafkagoProducer) handleAsyncResponses(messages []kafka.Message, e error) {
+	lg := logger.New(context.Background(), "")
+
+	for _, m := range messages {
+		if e != nil {
+			lg.Error(logger.LogCatUncategorized, errProduceFail(m.Topic), e)
+		} else {
+			lg.Infof(logger.LogCatUncategorized,
+				infoEvent(infoProduceSuccess, m.Topic, int32(m.Partition), m.Offset))
+		}
+	}
 }

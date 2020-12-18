@@ -11,6 +11,8 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ```
 func main()
+	ctx := context.Background()
+
     topics := []kafkaclient.TopicConfig{
 		kafkaclient.NewTopicConfig(
 			"my_topic", 

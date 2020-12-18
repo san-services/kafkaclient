@@ -14,7 +14,6 @@ type ConsumerMessage interface {
 	Offset() int64
 	Partition() int32
 	Value() []byte
-	InfoEvent(event string) string
 }
 
 type failedMessage struct {

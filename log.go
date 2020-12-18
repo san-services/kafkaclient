@@ -8,8 +8,12 @@ import (
 
 var (
 	// INFO
-	infoConsumerReady = "kafka consumer ready"
-	infoConsumerTerm  = func(reason string) string { return fmt.Sprintf("terminating kafka consumer: %s", reason) }
+	infoConsumerReady  = "kafka consumer ready"
+	infoProduceSuccess = "kafka message added to topic"
+	infoConsumerTerm   = func(reason string) string { return fmt.Sprintf("terminating kafka consumer: %s", reason) }
+	infoEvent          = func(e string, topic string, partition int32, offset int64) string {
+		return fmt.Sprintf("%s: topic[%s], partition[%d], offset[%d]", e, topic, partition, offset)
+	}
 
 	// ERROR
 	// general
@@ -24,6 +28,7 @@ var (
 	errConsumer        = func(e error) error { return fmt.Errorf("kafka consumer error - %s", e) }
 	errConsumerClose   = func(e error) error { return fmt.Errorf("error closing consumer - %s", e) }
 	errInvalidProducer = errors.New("invalid producer type configured")
+	errProduceFail     = func(topic string) error { return fmt.Errorf("failed to produce kafka message", topic) }
 	errMessageFormat   = errors.New("unsupported topic message format configured")
 	errMessageType     = errors.New("unsupported message data type")
 	errCommit          = func(e error) error { return fmt.Errorf("error committing offset - %s", e.Error()) }

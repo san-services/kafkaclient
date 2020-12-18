@@ -10,11 +10,8 @@ import (
 )
 
 type saramaProducer struct {
-	producer    interface{}
-	topicConf   map[string]TopicConfig
-	avroCodec   EncoderDecoder
-	jsonCodec   EncoderDecoder
-	stringCodec EncoderDecoder
+	producer  interface{}
+	topicConf map[string]TopicConfig
 }
 
 func newSaramaProducer(ctx context.Context,
@@ -22,10 +19,6 @@ func newSaramaProducer(ctx context.Context,
 	saramaConf *sarama.Config, schemaReg schemaRegistry) (p saramaProducer, e error) {
 
 	lg := logger.New(ctx, "")
-
-	p.avroCodec = newAvroEncDec(schemaReg)
-	p.jsonCodec = newJSONEncDec(schemaReg)
-	p.stringCodec = newStringEncDec()
 
 	switch prodType {
 	case ProducerTypeSync:
@@ -76,28 +69,26 @@ func (p *saramaProducer) produceMessage(
 	return
 }
 
+func (p *saramaProducer) handleAsyncResponses(ctx context.Context) {
+	lg := logger.New(ctx, "")
+
+	for {
+		select {
+		case message := <-(p.producer.(sarama.AsyncProducer)).Successes():
+			lg.Infof(logger.LogCatUncategorized,
+				infoEvent(infoProduceSuccess, message.Topic, message.Partition, message.Offset))
+		case e := <-(p.producer.(sarama.AsyncProducer)).Errors():
+			lg.Error(logger.LogCatUncategorized, errProduceFail, e)
+		}
+	}
+}
+
 func (p *saramaProducer) getSaramaEncoder(ctx context.Context,
 	topicConf TopicConfig, msg interface{}) (s sarama.Encoder, e error) {
 
 	lg := logger.New(ctx, "")
 
-	var codec EncoderDecoder
-
-	switch topicConf.MessageType {
-	case MessageFormatAvro:
-		codec = p.avroCodec
-		break
-	case MessageFormatJSON:
-		codec = p.jsonCodec
-		break
-	case MessageFormatString:
-		codec = p.stringCodec
-		break
-	default:
-		e = errMessageFormat
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	codec := topicConf.MessageEncoderDecoder
 
 	switch msg.(type) {
 	case string:

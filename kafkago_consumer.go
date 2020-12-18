@@ -20,7 +20,8 @@ type kafkagoConsumer struct {
 	failMessages chan failedMessage
 }
 
-func newKafkagoConsumer(groupID string, brokers []string, topicNames []string,
+func newKafkagoConsumer(groupID string, 
+	brokers []string, topicNames []string, 
 	topicConf map[string]TopicConfig, tls *tls.Config) kafkagoConsumer {
 
 	d := &kafka.Dialer{
@@ -100,7 +101,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 				e = conf.MessageProcessor(ctx, m)
 
 				if e != nil {
-					// Failed message processing
+					// failed message processing
 					if conf.FailedProcessingTopic != "" {
 						c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e)
 					}
@@ -113,7 +114,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 					c.commitOffset(ctx, topic, partition, offset-1)
 				}
 
-				// Successful message processing
+				// successful message processing
 				c.commitOffset(ctx, topic, partition, offset)
 			}
 		})
