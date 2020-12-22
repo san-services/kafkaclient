@@ -108,7 +108,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 				}
 				offset = msg.Offset
 
-				m := newKafkaGoMessage(msg, conf.MessageEncoderDecoder)
+				m := newKafkaGoMessage(msg, conf.messageCodec)
 				e = conf.MessageProcessor(ctx, m)
 
 				if e != nil {

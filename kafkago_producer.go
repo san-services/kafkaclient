@@ -51,7 +51,7 @@ func (p *kafkagoProducer) produceMessage(
 	lg := logger.New(ctx, "")
 
 	topicConf := p.topicConf[topic]
-	msgbytes, e := topicConf.MessageEncoderDecoder.Encode(ctx, topic, msg)
+	msgbytes, e := topicConf.messageCodec.Encode(ctx, topic, msg)
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)

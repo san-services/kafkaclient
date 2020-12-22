@@ -13,11 +13,26 @@ type KafkaGoClient struct {
 }
 
 func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
+	ctx := context.Background()
+	lg := logger.New(ctx, "")
+
 	consumer := newKafkagoConsumer(
 		conf.ConsumerGroupID, conf.Brokers,
-		conf.TopicNames(), conf.TopicMap(), conf.TLS)
+		conf.ReadTopicNames(), conf.TopicMap(), conf.TLS)
 
-	return &KafkaGoClient{consumer: consumer}, nil
+	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	producer := newKafkaGoProducer(
+		conf.ProducerType, conf.WriteTopicNames(),
+		conf.TopicMap(), conf.Brokers, conf.TLS, sr)
+
+	return &KafkaGoClient{
+		consumer: consumer,
+		producer: producer}, nil
 }
 
 // StartConsume starts consuming configured kafka topic messages

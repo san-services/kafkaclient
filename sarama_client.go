@@ -39,7 +39,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 	}
 
 	consumer, e := newSaramaConsumer(sc, conf.ConsumerGroupID,
-		conf.TopicMap(), conf.TopicNames(), conf.Brokers)
+		conf.TopicMap(), conf.ReadTopicNames(), conf.Brokers)
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)

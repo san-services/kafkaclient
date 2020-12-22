@@ -113,13 +113,13 @@ func (c *saramaConsumer) ConsumeClaim(
 		case msg := <-claim.Messages():
 			conf := c.topicConf[msg.Topic]
 
-			if conf.Name == "" || conf.MessageEncoderDecoder == nil {
+			if conf.Name == "" || conf.messageCodec == nil {
 				e = errTopicConfMissing
 				lg.Error(logger.LogCatUncategorized, e)
 				continue
 			}
 
-			m := newSaramaMessage(msg, conf.MessageEncoderDecoder)
+			m := newSaramaMessage(msg, conf.messageCodec)
 			lg.Infof(logger.LogCatUncategorized,
 				infoEvent("message claimed", msg.Topic, msg.Partition, msg.Offset))
 

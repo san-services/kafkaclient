@@ -88,9 +88,9 @@ func NewConfig(
 			t.MessageProcessor = DefaultProcessor
 		}
 
-		switch t.MessageType {
+		switch t.MessageFormat {
 		case MessageFormatAvro:
-			topics[i].MessageEncoderDecoder = newAvroEncDec(sr)
+			topics[i].messageCodec = newAvroEncDec(sr)
 		case MessageFormatJSON:
 			e = errNoEncoderDecoder("JSON")
 		case MessageFormatString:
@@ -112,11 +112,24 @@ func (c Config) TopicMap() (m map[string]TopicConfig) {
 	return
 }
 
-// TopicNames constructs and returns a slice of all topic names
-func (c Config) TopicNames() (n []string) {
+// ReadTopicNames constructs and returns a slice of all topic names
+func (c Config) ReadTopicNames() (n []string) {
 	n = make([]string, len(c.Topics))
-	for i := range c.Topics {
-		n[i] = c.Topics[i].Name
+	for i, t := range c.Topics {
+		if t.DoRead {
+			n[i] = c.Topics[i].Name
+		}
+	}
+	return
+}
+
+// WriteTopicNames constructs and returns a slice of all topic names
+func (c Config) WriteTopicNames() (n []string) {
+	n = make([]string, len(c.Topics))
+	for i, t := range c.Topics {
+		if t.DoWrite {
+			n[i] = c.Topics[i].Name
+		}
 	}
 	return
 }
@@ -124,10 +137,12 @@ func (c Config) TopicNames() (n []string) {
 // TopicConfig is a struct that holds data regarding an
 // existing Kafka topic that can be consumed from or written to
 type TopicConfig struct {
-	Name                  string
-	MessageType           messageFormat
-	MessageEncoderDecoder EncoderDecoder
-	DelayProcessingMins   time.Duration
+	Name                string
+	MessageFormat       messageFormat
+	messageCodec        EncoderDecoder
+	DoRead              bool
+	DoWrite             bool
+	DelayProcessingMins time.Duration
 	// FailedProcessingTopic is the retry topic to which a message
 	// should be handed off in the case of a failure to process the message
 	FailedProcessingTopic string
@@ -135,20 +150,4 @@ type TopicConfig struct {
 	Schema           string
 	SchemaVersion    int
 	MessageProcessor func(context.Context, ConsumerMessage) error
-}
-
-// NewTopicConfig constructs and returns a TopicConfig struct
-func NewTopicConfig(
-	name string, msgType messageFormat, delayMins time.Duration,
-	failTopic string, schema string, schemaVersion int,
-	processorFunc func(context.Context, ConsumerMessage) error) TopicConfig {
-
-	return TopicConfig{
-		Name:                  name,
-		MessageType:           msgType,
-		DelayProcessingMins:   delayMins,
-		FailedProcessingTopic: failTopic,
-		Schema:                schema,
-		SchemaVersion:         schemaVersion,
-		MessageProcessor:      processorFunc}
 }

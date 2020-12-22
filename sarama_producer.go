@@ -88,7 +88,7 @@ func (p *saramaProducer) getSaramaEncoder(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	codec := topicConf.MessageEncoderDecoder
+	codec := topicConf.messageCodec
 
 	switch msg.(type) {
 	case string:
