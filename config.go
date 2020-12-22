@@ -21,7 +21,8 @@ type producerType string
 
 const (
 	// ConsumerTypeSimple configures a simple consumer as opposed to a node in a consumer group
-	ConsumerTypeSimple consumerType = "CONSUMER_SIMPLE"
+	// ConsumerTypeSimple consumerType = "CONSUMER_SIMPLE" // not yet implemented
+
 	// ConsumerTypeGroup configures the consumer as part of a consumer group
 	ConsumerTypeGroup consumerType = "CONSUMER_GROUP"
 

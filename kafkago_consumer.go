@@ -20,8 +20,8 @@ type kafkagoConsumer struct {
 	failMessages chan failedMessage
 }
 
-func newKafkagoConsumer(groupID string, 
-	brokers []string, topicNames []string, 
+func newKafkagoConsumer(groupID string,
+	brokers []string, topicNames []string,
 	topicConf map[string]TopicConfig, tls *tls.Config) kafkagoConsumer {
 
 	d := &kafka.Dialer{
@@ -37,7 +37,7 @@ func newKafkagoConsumer(groupID string,
 		dialer:      d}
 }
 
-func (c *kafkagoConsumer) startConsume(ctx context.Context) (e error) {
+func (c *kafkagoConsumer) initConsumerGroup(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
 	c.group, e = kafka.NewConsumerGroup(kafka.ConsumerGroupConfig{
@@ -46,6 +46,17 @@ func (c *kafkagoConsumer) startConsume(ctx context.Context) (e error) {
 		Topics:      c.topicNames,
 		StartOffset: kafka.LastOffset,
 		Dialer:      c.dialer})
+
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	return
+}
+
+func (c *kafkagoConsumer) startConsume(ctx context.Context) {
+	lg := logger.New(ctx, "")
+	var e error
 
 	for {
 		// get the next (latest) generation of a consumer group - every time

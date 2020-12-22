@@ -70,11 +70,12 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
-	e = c.consumer.startConsume()
+	e = c.consumer.initConsumerGroup()
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 	}
 
+	go c.consumer.startConsume()
 	return
 }
 

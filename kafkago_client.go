@@ -24,12 +24,13 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 func (c *KafkaGoClient) StartConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
-	e = c.consumer.startConsume(ctx)
+	e = c.consumer.initConsumerGroup(ctx)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
 
+	go c.consumer.startConsume(ctx)
 	return
 }
 

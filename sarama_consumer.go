@@ -38,7 +38,7 @@ func newSaramaConsumer(saramaConf *sarama.Config,
 		ctx:        consumerCtx}, nil
 }
 
-func (c *saramaConsumer) startConsume() (e error) {
+func (c *saramaConsumer) initConsumerGroup() (e error) {
 	lg := logger.New(c.ctx, "")
 
 	c.group, e = sarama.NewConsumerGroup(
@@ -46,8 +46,13 @@ func (c *saramaConsumer) startConsume() (e error) {
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
-		return
 	}
+
+	return
+}
+
+func (c *saramaConsumer) startConsume() (e error) {
+	lg := logger.New(c.ctx, "")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
