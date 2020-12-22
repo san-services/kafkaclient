@@ -84,6 +84,10 @@ func NewConfig(
 	}
 
 	for i, t := range topics {
+		if t.MessageProcessor == nil {
+			t.MessageProcessor = DefaultProcessor
+		}
+
 		switch t.MessageType {
 		case MessageFormatAvro:
 			topics[i].MessageEncoderDecoder = newAvroEncDec(sr)
