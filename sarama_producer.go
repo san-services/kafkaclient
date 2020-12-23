@@ -10,8 +10,9 @@ import (
 )
 
 type saramaProducer struct {
-	producer  interface{}
-	topicConf map[string]TopicConfig
+	producer    interface{}
+	topicConf   map[string]TopicConfig
+	initialized bool
 }
 
 func newSaramaProducer(ctx context.Context,
@@ -34,6 +35,7 @@ func newSaramaProducer(ctx context.Context,
 	}
 
 	p.topicConf = topicConf
+	p.initialized = true
 	return
 }
 

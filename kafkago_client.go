@@ -2,21 +2,23 @@ package kafkaclient
 
 import (
 	"context"
+	"crypto/tls"
+	"time"
 
 	logger "github.com/disturb16/apilogger"
 )
 
 // KafkaGoClient implements the KafkaClient interface
 type KafkaGoClient struct {
-	consumer kafkagoConsumer
-	producer kafkagoProducer
+	consumer *kafkagoConsumer
+	producer *kafkagoProducer
 }
 
 func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 	ctx := context.Background()
 	lg := logger.New(ctx, "")
 
-	consumer := newKafkagoConsumer(
+	consumer := initKafkaGoConsumer(ctx,
 		conf.ConsumerGroupID, conf.Brokers,
 		conf.ReadTopicNames(), conf.TopicMap(), conf.TLS)
 
@@ -32,15 +34,15 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 
 	return &KafkaGoClient{
 		consumer: consumer,
-		producer: producer}, nil
+		producer: &producer}, nil
 }
 
 // StartConsume starts consuming configured kafka topic messages
 func (c *KafkaGoClient) StartConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
-	e = c.consumer.initConsumerGroup(ctx)
-	if e != nil {
+	if !c.consumer.initialized {
+		e = errConsumerUninit
 		lg.Error(logger.LogCatUncategorized, e)
 		return
 	}
@@ -91,6 +93,12 @@ func (c *KafkaGoClient) ProduceMessage(
 
 	lg := logger.New(context.Background(), "")
 
+	if !c.producer.initialized {
+		e = errProducerUninit
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
 	e = c.producer.produceMessage(ctx, topic, key, msg)
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
@@ -98,4 +106,28 @@ func (c *KafkaGoClient) ProduceMessage(
 	}
 
 	return
+}
+
+func initKafkaGoConsumer(ctx context.Context,
+	groupID string, brokers []string, topicNames []string,
+	topicMap map[string]TopicConfig, tls *tls.Config) *kafkagoConsumer {
+
+	lg := logger.New(ctx, "")
+
+	c, e := newKafkagoConsumer(groupID,
+		brokers, topicNames, topicMap, tls)
+
+	if e != nil {
+		go func(e error) {
+			for e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+				time.Sleep(5 * time.Second)
+
+				c, e = newKafkagoConsumer(groupID,
+					brokers, topicNames, topicMap, tls)
+			}
+		}(e)
+	}
+
+	return &c
 }

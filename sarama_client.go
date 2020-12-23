@@ -18,8 +18,8 @@ const (
 
 // SaramaClient implements the KafkaClient interface
 type SaramaClient struct {
-	consumer saramaConsumer
-	producer saramaProducer
+	consumer *saramaConsumer
+	producer *saramaProducer
 }
 
 func newSaramaClient(conf Config) (c KafkaClient, e error) {
@@ -38,13 +38,8 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	consumer, e := newSaramaConsumer(sc, conf.ConsumerGroupID,
+	consumer := initSaramaConsumer(ctx, sc, conf.ConsumerGroupID,
 		conf.TopicMap(), conf.ReadTopicNames(), conf.Brokers)
-
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
 	if e != nil {
@@ -52,13 +47,8 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	producer, e := newSaramaProducer(ctx,
+	producer := initSaramaProducer(ctx,
 		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc, sr)
-
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
 
 	return &SaramaClient{
 		consumer: consumer,
@@ -70,12 +60,13 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	lg := logger.New(ctx, "")
 
-	e = c.consumer.initConsumerGroup()
-	if e != nil {
+	if !c.consumer.initialized {
+		e = errConsumerUninit
 		lg.Error(logger.LogCatUncategorized, e)
+		return
 	}
 
-	go c.consumer.startConsume()
+	go c.consumer.startConsume(ctx)
 	return
 }
 
@@ -84,6 +75,26 @@ func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 func (c *SaramaClient) CancelConsume() (e error) {
 	c.consumer.cancel()
 	return nil
+}
+
+// ProduceMessage creates/encodes a message and sends it to the specified topic
+func (c *SaramaClient) ProduceMessage(
+	ctx context.Context, topic string, key string, msg interface{}) (e error) {
+
+	lg := logger.New(ctx, "")
+
+	if !c.producer.initialized {
+		e = errProducerUninit
+		lg.Error(logger.LogCatUncategorized, e)
+		return
+	}
+
+	e = c.producer.produceMessage(ctx, topic, key, msg)
+	if e != nil {
+		lg.Error(logger.LogCatUncategorized, e)
+	}
+
+	return
 }
 
 func (c *SaramaClient) handleProcessingFail() (e error) {
@@ -105,20 +116,6 @@ func (c *SaramaClient) handleProcessingFail() (e error) {
 			}
 		}
 	}
-}
-
-// ProduceMessage creates/encodes a message and sends it to the specified topic
-func (c *SaramaClient) ProduceMessage(
-	ctx context.Context, topic string, key string, msg interface{}) (e error) {
-
-	lg := logger.New(ctx, "")
-
-	e = c.producer.produceMessage(ctx, topic, key, msg)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-	}
-
-	return
 }
 
 func getSaramaConf(ctx context.Context, kafkaVersion string,
@@ -157,4 +154,54 @@ func getSaramaConf(ctx context.Context, kafkaVersion string,
 	}
 
 	return
+}
+
+func initSaramaConsumer(ctx context.Context, sc *sarama.Config,
+	groupID string, topicMap map[string]TopicConfig,
+	topicNames []string, brokers []string) *saramaConsumer {
+
+	lg := logger.New(ctx, "")
+
+	c, e := newSaramaConsumer(ctx,
+		sc, groupID, topicMap, topicNames, brokers)
+
+	if e != nil {
+		// retry init in background on fail
+		go func(e error) {
+			for e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+				time.Sleep(5 * time.Second)
+
+				c, e = newSaramaConsumer(ctx,
+					sc, groupID, topicMap, topicNames, brokers)
+			}
+		}(e)
+	}
+
+	return &c
+}
+
+func initSaramaProducer(ctx context.Context,
+	prodType producerType, brokers []string, topicMap map[string]TopicConfig,
+	sc *sarama.Config, sr schemaRegistry) *saramaProducer {
+
+	lg := logger.New(ctx, "")
+
+	p, e := newSaramaProducer(ctx,
+		prodType, brokers, topicMap, sc, sr)
+
+	if e != nil {
+		// retry init in background on fail
+		go func(e error) {
+			for e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+				time.Sleep(5 * time.Second)
+
+				p, e = newSaramaProducer(ctx,
+					prodType, brokers, topicMap, sc, sr)
+			}
+		}(e)
+	}
+
+	return &p
 }

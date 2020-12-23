@@ -11,8 +11,9 @@ import (
 )
 
 type kafkagoProducer struct {
-	writers   map[string]*kafka.Writer
-	topicConf map[string]TopicConfig
+	writers     map[string]*kafka.Writer
+	topicConf   map[string]TopicConfig
+	initialized bool
 }
 
 func newKafkaGoProducer(prodType producerType,
@@ -42,6 +43,7 @@ func newKafkaGoProducer(prodType producerType,
 		p.writers[t] = w
 	}
 
+	p.initialized = true
 	return
 }
 

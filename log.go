@@ -27,8 +27,10 @@ var (
 	// produce/consume
 	errConsumer        = func(e error) error { return fmt.Errorf("kafka consumer error - %s", e) }
 	errConsumerClose   = func(e error) error { return fmt.Errorf("error closing consumer - %s", e) }
+	errConsumerUninit  = errors.New("kafka consumer not yet initialized, see logs")
 	errInvalidProducer = errors.New("invalid producer type configured")
 	errProduceFail     = func(topic string) error { return fmt.Errorf("failed to produce kafka message", topic) }
+	errProducerUninit  = errors.New("kafka producer not initialized, see logs")
 	errMessageFormat   = errors.New("unsupported topic message format configured")
 	errMessageType     = errors.New("unsupported message data type")
 	errCommit          = func(e error) error { return fmt.Errorf("error committing offset - %s", e.Error()) }

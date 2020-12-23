@@ -18,27 +18,16 @@ type saramaConsumer struct {
 	brokers      []string
 	ready        chan bool
 	failMessages chan failedMessage
+	initialized  bool
 	cancel       context.CancelFunc
 	ctx          context.Context
 }
 
-func newSaramaConsumer(saramaConf *sarama.Config,
-	groupID string, topicConf map[string]TopicConfig, topicNames []string,
+func newSaramaConsumer(ctx context.Context,
+	saramaConf *sarama.Config, groupID string,
+	topicConf map[string]TopicConfig, topicNames []string,
 	brokers []string) (c saramaConsumer, e error) {
 
-	consumerCtx, cancel := context.WithCancel(context.Background())
-
-	return saramaConsumer{
-		groupID:    groupID,
-		config:     saramaConf,
-		topicConf:  topicConf,
-		topicNames: topicNames,
-		brokers:    brokers,
-		cancel:     cancel,
-		ctx:        consumerCtx}, nil
-}
-
-func (c *saramaConsumer) initConsumerGroup() (e error) {
 	lg := logger.New(c.ctx, "")
 
 	c.group, e = sarama.NewConsumerGroup(
@@ -46,13 +35,24 @@ func (c *saramaConsumer) initConsumerGroup() (e error) {
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
+		return
 	}
 
-	return
+	consumerCtx, cancel := context.WithCancel(context.Background())
+
+	return saramaConsumer{
+		groupID:     groupID,
+		config:      saramaConf,
+		topicConf:   topicConf,
+		topicNames:  topicNames,
+		brokers:     brokers,
+		cancel:      cancel,
+		initialized: true,
+		ctx:         consumerCtx}, nil
 }
 
-func (c *saramaConsumer) startConsume() (e error) {
-	lg := logger.New(c.ctx, "")
+func (c *saramaConsumer) startConsume(ctx context.Context) {
+	lg := logger.New(ctx, "")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

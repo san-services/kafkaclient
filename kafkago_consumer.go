@@ -11,47 +11,43 @@ import (
 
 type kafkagoConsumer struct {
 	gen          *kafka.Generation
-	groupID      string
 	group        *kafka.ConsumerGroup
-	brokers      []string
 	topicNames   []string
+	brokers      []string
+	initialized  bool
 	topicConfig  map[string]TopicConfig
-	dialer       *kafka.Dialer
 	failMessages chan failedMessage
 }
 
-func newKafkagoConsumer(groupID string,
-	brokers []string, topicNames []string,
-	topicConf map[string]TopicConfig, tls *tls.Config) kafkagoConsumer {
+func newKafkagoConsumer(groupID string, brokers []string,
+	topicNames []string, topicConf map[string]TopicConfig,
+	tls *tls.Config) (c kafkagoConsumer, e error) {
+
+	lg := logger.New(context.Background(), "")
 
 	d := &kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
 		TLS:       tls}
 
-	return kafkagoConsumer{
-		groupID:     groupID,
-		brokers:     brokers,
-		topicNames:  topicNames,
-		topicConfig: topicConf,
-		dialer:      d}
-}
-
-func (c *kafkagoConsumer) initConsumerGroup(ctx context.Context) (e error) {
-	lg := logger.New(ctx, "")
-
-	c.group, e = kafka.NewConsumerGroup(kafka.ConsumerGroupConfig{
-		ID:          c.groupID,
-		Brokers:     c.brokers,
-		Topics:      c.topicNames,
+	group, e := kafka.NewConsumerGroup(kafka.ConsumerGroupConfig{
+		ID:          groupID,
+		Brokers:     brokers,
+		Topics:      topicNames,
 		StartOffset: kafka.LastOffset,
-		Dialer:      c.dialer})
+		Dialer:      d})
 
 	if e != nil {
 		lg.Error(logger.LogCatUncategorized, e)
+		return
 	}
 
-	return
+	return kafkagoConsumer{
+		topicConfig: topicConf,
+		topicNames:  topicNames,
+		brokers:     brokers,
+		initialized: true,
+		group:       group}, nil
 }
 
 func (c *kafkagoConsumer) startConsume(ctx context.Context) {
