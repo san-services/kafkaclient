@@ -46,35 +46,35 @@ func main() {
         },
     }
 
-	config, e := kafkaclient.NewConfig(ctx, 
-        "2.5.0", 
-        []string{"127.0.0.1"}, 
-        topics, 
-        "", 
-        kafkaclient.ConsumerTypeGroup,
-		"test_consumer", 
-        kafkaclient.ProducerTypeSync, 
-        true, 
-        nil, 
-        true)
+config, e := kafkaclient.NewConfig(ctx, 
+    "2.5.0", 
+    []string{"127.0.0.1"}, 
+    topics, 
+    "", 
+    kafkaclient.ConsumerTypeGroup,
+    "test_consumer", 
+    kafkaclient.ProducerTypeSync, 
+    true, 
+    nil, 
+    true)
 
-	if e != nil {
-		log.Println(e)
-		return
-	}
+    if e != nil {
+        log.Println(e)
+        return
+    }
 
-	kc, e := kafkaclient.New(BaseSarama, config)
-	if e != nil {
-		t.Error(e)
-		return
-	}
+    kc, e := kafkaclient.New(BaseSarama, config)
+    if e != nil {
+        t.Error(e)
+        return
+    }
 
-	kc.StartConsume(ctx)
+    kc.StartConsume(ctx)
 
-	e := kc.kafkaClient.ProduceMessage(ctx, TestTopic, "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
-	if e != nil {
-		log.Println(e)
-	}
+    e := kc.kafkaClient.ProduceMessage(ctx, TestTopic, "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
+    if e != nil {
+        log.Println(e)
+    }
 }
 
 func processTestTopic(ctx context.Context, msg kafkaclient.ConsumerMessage) (e error) {
