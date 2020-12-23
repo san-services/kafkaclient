@@ -13,9 +13,9 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ```
 const (
-	TestTopic       = "test_topic"
-	TestTopicRetry1 = "test_topic_retry"
-	TestTopicDLQ    = "test_topic_dlq"
+    TestTopic       = "test_topic"
+    TestTopicRetry1 = "test_topic_retry"
+    TestTopicDLQ    = "test_topic_dlq"
 )
 
 func main() {
@@ -71,7 +71,9 @@ func main() {
 
     kc.StartConsume(ctx)
 
-    e := kc.kafkaClient.ProduceMessage(ctx, TestTopic, "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
+    e := kc.kafkaClient.ProduceMessage(ctx, TestTopic, 
+	    "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
+
     if e != nil {
         log.Println(e)
     }
