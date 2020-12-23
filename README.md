@@ -33,7 +33,7 @@ func main() {
         {
             Name:                  TestTopicRetry1,
             DoConsume:             true,
-            DoProduce:			   true,
+            DoProduce:             true,
             MessageFormat:         kafkaclient.MessageFormatAvro,
             DelayProcessingMins:   15,
             FailedProcessingTopic: TestTopicDLQ,
@@ -41,7 +41,7 @@ func main() {
         },
         {
             Name:                  TestTopicDLQ,
-            DoWrite:			   true,
+            DoProduce:             true,
             MessageFormat:         kafkaclient.MessageFormatAvro,
         },
     }
