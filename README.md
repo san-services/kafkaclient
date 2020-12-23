@@ -14,14 +14,29 @@ func main()
 	ctx := context.Background()
 
     topics := []kafkaclient.TopicConfig{
-		kafkaclient.NewTopicConfig(
-			"my_topic", 
-            kafkaclient.MessageFormatAvro,
-			5, 
-            "my_topic_retry",
-			"", 
-            0, 
-            processTestTopic)}
+		{
+			Name:                  "test_topic",
+			DoRead:                true,
+			MessageFormat:         kafkaclient.MessageFormatAvro,
+			DelayProcessingMins:   0,
+			FailedProcessingTopic: "test_topic_dlq",
+			MessageProcessor:      processTestTopic,
+		},
+		{
+			Name:                  "test_topic_retry",
+			DoRead:                true,
+			DoWrite:			   true,
+			MessageFormat:         kafkaclient.MessageFormatAvro,
+			DelayProcessingMins:   15,
+			FailedProcessingTopic: "test_topic_dlq",
+			MessageProcessor:      processTestTopic,
+		},
+		{
+			Name:                  "test_topic_dlq",
+			DoWrite:			   true,
+			MessageFormat:         kafkaclient.MessageFormatAvro,
+		},
+	}
 
 	config, e := kafkaclient.NewConfig(ctx, 
         "2.5.0", 
@@ -32,7 +47,7 @@ func main()
 		"test_consumer", 
         kafkaclient.ProducerTypeAsync, 
         true, 
-        &tls.Config{}, 
+        nil, 
         true)
 
 	if e != nil {
@@ -45,10 +60,7 @@ func main()
 		return
 	}
 
-	e = kc.StartConsume(ctx)
-	if e != nil {
-		t.Error(e)
-	}
+	kc.StartConsume(ctx)
 }
 
 func processTestTopic(ctx context.Context, msg kafkaclient.ConsumerMessage) (e error) {
