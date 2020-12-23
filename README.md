@@ -19,32 +19,32 @@ const (
 )
 
 func main() {
-	ctx := context.Background()
+    ctx := context.Background()
 
     topics := []kafkaclient.TopicConfig{
-		{
-			Name:                  TestTopic,
-			DoConsume:             true,
-			MessageFormat:         kafkaclient.MessageFormatAvro,
-			DelayProcessingMins:   0,
-			FailedProcessingTopic: TestTopicDLQ,
-			MessageProcessor:      processTestTopic,
-		},
-		{
-			Name:                  TestTopicRetry1,
-			DoConsume:             true,
-			DoProduce:			   true,
-			MessageFormat:         kafkaclient.MessageFormatAvro,
-			DelayProcessingMins:   15,
-			FailedProcessingTopic: TestTopicDLQ,
-			MessageProcessor:      processTestTopic,
-		},
-		{
-			Name:                  TestTopicDLQ,
-			DoWrite:			   true,
-			MessageFormat:         kafkaclient.MessageFormatAvro,
-		},
-	}
+        {
+            Name:                  TestTopic,
+            DoConsume:             true,
+            MessageFormat:         kafkaclient.MessageFormatAvro,
+            DelayProcessingMins:   0,
+            FailedProcessingTopic: TestTopicDLQ,
+            MessageProcessor:      processTestTopic,
+        },
+        {
+            Name:                  TestTopicRetry1,
+            DoConsume:             true,
+            DoProduce:			   true,
+            MessageFormat:         kafkaclient.MessageFormatAvro,
+            DelayProcessingMins:   15,
+            FailedProcessingTopic: TestTopicDLQ,
+            MessageProcessor:      processTestTopic,
+        },
+        {
+            Name:                  TestTopicDLQ,
+            DoWrite:			   true,
+            MessageFormat:         kafkaclient.MessageFormatAvro,
+        },
+    }
 
 	config, e := kafkaclient.NewConfig(ctx, 
         "2.5.0", 
