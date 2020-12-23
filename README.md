@@ -9,8 +9,6 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ## Use
 
-# Setup
-
 ```
 const (
     TestTopic       = "test_topic"
