@@ -14,7 +14,7 @@ type kafkagoConsumer struct {
 	group        *kafka.ConsumerGroup
 	topicNames   []string
 	brokers      []string
-	initialized  bool
+	initialized  chan bool
 	topicConfig  map[string]TopicConfig
 	failMessages chan failedMessage
 }
@@ -42,12 +42,14 @@ func newKafkagoConsumer(groupID string, brokers []string,
 		return
 	}
 
-	return kafkagoConsumer{
+	c = kafkagoConsumer{
 		topicConfig: topicConf,
 		topicNames:  topicNames,
 		brokers:     brokers,
-		initialized: true,
-		group:       group}, nil
+		group:       group}
+
+	c.initialized <- true
+	return
 }
 
 func (c *kafkagoConsumer) startConsume(ctx context.Context) {

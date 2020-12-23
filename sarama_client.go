@@ -58,15 +58,12 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 
 // StartConsume starts consuming configured kafka topic messages
 func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
-	lg := logger.New(ctx, "")
-
-	if !c.consumer.initialized {
-		e = errConsumerUninit
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
-	go c.consumer.startConsume(ctx)
+	go func() {
+		select {
+		case <-c.consumer.initialized:
+			go c.consumer.startConsume(ctx)
+		}
+	}()
 	return
 }
 

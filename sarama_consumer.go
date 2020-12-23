@@ -18,7 +18,7 @@ type saramaConsumer struct {
 	brokers      []string
 	ready        chan bool
 	failMessages chan failedMessage
-	initialized  bool
+	initialized  chan bool
 	cancel       context.CancelFunc
 	ctx          context.Context
 }
@@ -40,15 +40,17 @@ func newSaramaConsumer(ctx context.Context,
 
 	consumerCtx, cancel := context.WithCancel(context.Background())
 
-	return saramaConsumer{
-		groupID:     groupID,
-		config:      saramaConf,
-		topicConf:   topicConf,
-		topicNames:  topicNames,
-		brokers:     brokers,
-		cancel:      cancel,
-		initialized: true,
-		ctx:         consumerCtx}, nil
+	c = saramaConsumer{
+		groupID:    groupID,
+		config:     saramaConf,
+		topicConf:  topicConf,
+		topicNames: topicNames,
+		brokers:    brokers,
+		cancel:     cancel,
+		ctx:        consumerCtx}
+
+	c.initialized <- true
+	return
 }
 
 func (c *saramaConsumer) startConsume(ctx context.Context) {
