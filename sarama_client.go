@@ -38,7 +38,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	consumer := initSaramaConsumer(ctx, sc, conf.ConsumerGroupID,
+	consumer := getSaramaConsumer(ctx, sc, conf.ConsumerGroupID,
 		conf.TopicMap(), conf.ReadTopicNames(), conf.Brokers)
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
@@ -47,7 +47,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	producer := initSaramaProducer(ctx,
+	producer := getSaramaProducer(ctx,
 		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc, sr)
 
 	return &SaramaClient{
@@ -156,7 +156,7 @@ func getSaramaConf(ctx context.Context, kafkaVersion string,
 	return
 }
 
-func initSaramaConsumer(ctx context.Context, sc *sarama.Config,
+func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
 	groupID string, topicMap map[string]TopicConfig,
 	topicNames []string, brokers []string) *saramaConsumer {
 
@@ -170,7 +170,7 @@ func initSaramaConsumer(ctx context.Context, sc *sarama.Config,
 		go func(e error) {
 			for e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
-				time.Sleep(5 * time.Second)
+				time.Sleep(retryInitDelay)
 
 				c, e = newSaramaConsumer(ctx,
 					sc, groupID, topicMap, topicNames, brokers)
@@ -181,7 +181,7 @@ func initSaramaConsumer(ctx context.Context, sc *sarama.Config,
 	return &c
 }
 
-func initSaramaProducer(ctx context.Context,
+func getSaramaProducer(ctx context.Context,
 	prodType producerType, brokers []string, topicMap map[string]TopicConfig,
 	sc *sarama.Config, sr schemaRegistry) *saramaProducer {
 
@@ -195,7 +195,7 @@ func initSaramaProducer(ctx context.Context,
 		go func(e error) {
 			for e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
-				time.Sleep(5 * time.Second)
+				time.Sleep(retryInitDelay)
 
 				p, e = newSaramaProducer(ctx,
 					prodType, brokers, topicMap, sc, sr)

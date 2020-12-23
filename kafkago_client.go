@@ -18,7 +18,7 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 	ctx := context.Background()
 	lg := logger.New(ctx, "")
 
-	consumer := initKafkaGoConsumer(ctx,
+	consumer := getKafkaGoConsumer(ctx,
 		conf.ConsumerGroupID, conf.Brokers,
 		conf.ReadTopicNames(), conf.TopicMap(), conf.TLS)
 
@@ -65,27 +65,6 @@ func (c *KafkaGoClient) CancelConsume() (e error) {
 	return
 }
 
-func (c *KafkaGoClient) handleProcessingFail() (e error) {
-	ctx := context.Background()
-	lg := logger.New(ctx, "")
-
-	for {
-		select {
-		case fail := <-c.consumer.failMessages:
-			retryMsg := NewRetryTopicMessage(
-				fail.msg.Topic(), fail.msg.Partition(),
-				fail.msg.Offset(), fail.msg.Value(), fail.e)
-
-			e = c.producer.produceMessage(
-				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
-
-			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
-			}
-		}
-	}
-}
-
 // ProduceMessage creates/encodes a
 // message and sends it to the specified topic
 func (c *KafkaGoClient) ProduceMessage(
@@ -108,7 +87,28 @@ func (c *KafkaGoClient) ProduceMessage(
 	return
 }
 
-func initKafkaGoConsumer(ctx context.Context,
+func (c *KafkaGoClient) handleProcessingFail() (e error) {
+	ctx := context.Background()
+	lg := logger.New(ctx, "")
+
+	for {
+		select {
+		case fail := <-c.consumer.failMessages:
+			retryMsg := NewRetryTopicMessage(
+				fail.msg.Topic(), fail.msg.Partition(),
+				fail.msg.Offset(), fail.msg.Value(), fail.e)
+
+			e = c.producer.produceMessage(
+				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
+
+			if e != nil {
+				lg.Error(logger.LogCatUncategorized, e)
+			}
+		}
+	}
+}
+
+func getKafkaGoConsumer(ctx context.Context,
 	groupID string, brokers []string, topicNames []string,
 	topicMap map[string]TopicConfig, tls *tls.Config) *kafkagoConsumer {
 
@@ -118,10 +118,11 @@ func initKafkaGoConsumer(ctx context.Context,
 		brokers, topicNames, topicMap, tls)
 
 	if e != nil {
+		// retry init in background on fail
 		go func(e error) {
 			for e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
-				time.Sleep(5 * time.Second)
+				time.Sleep(retryInitDelay)
 
 				c, e = newKafkagoConsumer(groupID,
 					brokers, topicNames, topicMap, tls)

@@ -28,7 +28,7 @@ func newSaramaConsumer(ctx context.Context,
 	topicConf map[string]TopicConfig, topicNames []string,
 	brokers []string) (c saramaConsumer, e error) {
 
-	lg := logger.New(c.ctx, "")
+	lg := logger.New(ctx, "")
 
 	c.group, e = sarama.NewConsumerGroup(
 		c.brokers, c.groupID, c.config)
