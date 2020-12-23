@@ -61,7 +61,7 @@ func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
 	go func() {
 		select {
 		case <-c.consumer.initialized:
-			go c.consumer.startConsume(ctx)
+			c.consumer.startConsume(ctx)
 		}
 	}()
 	return

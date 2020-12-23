@@ -117,7 +117,7 @@ func (c Config) TopicMap() (m map[string]TopicConfig) {
 func (c Config) ReadTopicNames() (n []string) {
 	n = make([]string, len(c.Topics))
 	for i, t := range c.Topics {
-		if t.DoRead {
+		if t.DoConsume {
 			n[i] = c.Topics[i].Name
 		}
 	}
@@ -128,7 +128,7 @@ func (c Config) ReadTopicNames() (n []string) {
 func (c Config) WriteTopicNames() (n []string) {
 	n = make([]string, len(c.Topics))
 	for i, t := range c.Topics {
-		if t.DoWrite {
+		if t.DoProduce {
 			n[i] = c.Topics[i].Name
 		}
 	}
@@ -138,11 +138,13 @@ func (c Config) WriteTopicNames() (n []string) {
 // TopicConfig is a struct that holds data regarding an
 // existing Kafka topic that can be consumed from or written to
 type TopicConfig struct {
-	Name                string
-	MessageFormat       messageFormat
-	messageCodec        EncoderDecoder
-	DoRead              bool
-	DoWrite             bool
+	Name          string
+	MessageFormat messageFormat
+	messageCodec  EncoderDecoder
+	// Set DoConsume to true if this topic should be consumed from
+	DoConsume bool
+	// Set SoProduce to true if you will need to produce messages to this topic
+	DoProduce           bool
 	DelayProcessingMins time.Duration
 	// FailedProcessingTopic is the retry topic to which a message
 	// should be handed off in the case of a failure to process the message

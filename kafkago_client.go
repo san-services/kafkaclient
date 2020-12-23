@@ -42,13 +42,13 @@ func (c *KafkaGoClient) StartConsume(ctx context.Context) (e error) {
 	go func() {
 		select {
 		case <-c.consumer.initialized:
-			go c.consumer.startConsume(ctx)
+			c.consumer.startConsume(ctx)
 		}
 	}()
 	return
 }
 
-// CancelConsume call the context's context.cancelFunc
+// CancelConsume calls the context's context.cancelFunc
 // in order to stop the process of message consumption
 func (c *KafkaGoClient) CancelConsume() (e error) {
 	lg := logger.New(context.Background(), "")
