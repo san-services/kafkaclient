@@ -46,17 +46,17 @@ func main() {
         },
     }
 
-config, e := kafkaclient.NewConfig(ctx, 
-    "2.5.0", 
-    []string{"127.0.0.1"}, 
-    topics, 
-    "", 
-    kafkaclient.ConsumerTypeGroup,
-    "test_consumer", 
-    kafkaclient.ProducerTypeSync, 
-    true, 
-    nil, 
-    true)
+    config, e := kafkaclient.NewConfig(ctx, 
+        "2.5.0", 
+        []string{"127.0.0.1"}, 
+        topics, 
+        "", 
+        kafkaclient.ConsumerTypeGroup,
+        "test_consumer", 
+        kafkaclient.ProducerTypeSync, 
+        true, 
+        nil, 
+        true)
 
     if e != nil {
         log.Println(e)
