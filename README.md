@@ -63,7 +63,7 @@ func main() {
 
     kc, e := kafkaclient.New(BaseSarama, config)
     if e != nil {
-        t.Error(e)
+        log.Println(e)
         return
     }
 
