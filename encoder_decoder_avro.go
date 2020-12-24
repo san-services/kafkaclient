@@ -161,7 +161,7 @@ func (ed avroEncoderDecoder) Encode(
 //
 //	type ThingRetry struct {
 //		ErrorMessage     string        `avro:"ERROR_MESSAGE"`
-//  	OriginalMessage  TopicMessage  `avro:"ORIGINAL_MESSAGE". topic:"new_things"`
+//  	OriginalMessage  TopicMessage  `avro:"ORIGINAL_MESSAGE" topic:"new_things"`
 //  }
 //
 //  match the following schema:
