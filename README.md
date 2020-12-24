@@ -97,8 +97,8 @@ type testTopicAvroMessage struct {
 
 Often topic messages will be stored in avro format. kafkaclient uses linkedin/go-avro to help with encoding and decoding them using their avro schemas. Schemas are fetched from, or can be added to, a confluent schema registry. 
 
-kafkaclient augments the capabilities of the go-avro library, by enabling converting binary avro messages to golang structs and vice versa. 
-For this to work, struct fields need to contain tags referencing schema record fields. See below:
+kafkaclient augments the capabilities of the go-avro library, by enabling the conversion of binary avro messages to golang structs and vice versa. 
+For this to work, struct fields need to contain tags referencing schema record field names. See below:
 
 Avro schema:
 ```json
