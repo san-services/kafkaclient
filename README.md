@@ -4,8 +4,8 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ## Supported base libraries
 
-- shopify/sarama (implemented)
-- segmentio/kafka-go (planned)
+- shopify/sarama 
+- segmentio/kafka-go 
 
 ## Use
 
@@ -90,4 +90,5 @@ type testTopicAvroMessage struct {
 ## Notes
 
 - topic consumption starts in its own goroutine, so calling StartConsume is non-blocking
-- 
+- kafkaclient will automatically add messages that have processing errors to a retry/dead-letter topic if one is configured for that topic, i.e TopicConfig.FailedProcessingTopic. If you do not want this to happen, simply avoid setting this attribute in the topic config
+- if there are problems with intializing the client (e.g. not being able to reach kafka), kafkaclient will continue to retry the init at intervals in a separate goroutine, so that the parent application can continue executing, e.g. in order to start a web server
