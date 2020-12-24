@@ -87,7 +87,7 @@ type testTopicAvroMessage struct {
 }
 ```
 
-## Notes
+### Notes
 
 - topic consumption starts in its own goroutine, so calling StartConsume is non-blocking
 - kafkaclient will automatically add messages that have processing errors to a retry/dead-letter topic if one is configured for that topic, i.e TopicConfig.FailedProcessingTopic. If you do not want this to happen, simply avoid setting this attribute in the topic config
