@@ -9,7 +9,7 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ## Use
 
-```
+```go
 const (
     TestTopic       = "test_topic"
     TestTopicRetry1 = "test_topic_retry"
