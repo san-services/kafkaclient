@@ -103,25 +103,25 @@ For this to work, struct fields need to contain tags referencing schema record f
 Avro schema:
 ```json
 {
-	"type": "record",
-	"fields": [
-		{
-			"name": "ID",
-			"type": [
-				"null",
-				"long"
-			],
-			"default": null
-		},
-		{
-			"name": "NAME",
-			"type": [
-				"null",
-				"string"
-			],
-			"default": null
-		},
-	]
+    "type": "record",
+    "fields": [
+        {
+            "name": "ID",
+            "type": [
+                "null",
+                "long"
+            ],
+            "default": null
+        },
+        {
+            "name": "NAME",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null
+        },  
+    ]
 }
 ```
 Matching struct:
@@ -139,32 +139,32 @@ For encoding/decoding messages including nested messages (as might be the case w
 Avro schema:
 ```json
 {
-	"type": "record",
-	"fields": [
-		{
-			"name": "ERROR_MESSAGE",
-			"type": [
-				"null",
-				"string"
-			],
-			"default": null
-		},
-		{
-			"name": "ORIGINAL_MESSAGE",
-			"type": [
-				"null",
-				"bytes"
-			],
-			"default": null
-		},
-	]
+    "type": "record",
+    "fields": [
+        {
+            "name": "ERROR_MESSAGE",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null
+        },
+        {
+            "name": "ORIGINAL_MESSAGE",
+            "type": [
+                "null",
+                "bytes"
+            ],
+            "default": null
+        },
+    ]
 }
 ```
 Matching struct:
 ```go
 type ThingRetry struct {
-	ErrorMessage     string `avro:"ERROR_MESSAGE"`
-	OriginalMessage  Thing  `avro:"ORIGINAL_MESSAGE" topic:"thing_retry_1"`
+    ErrorMessage     string `avro:"ERROR_MESSAGE"`
+    OriginalMessage  Thing  `avro:"ORIGINAL_MESSAGE" topic:"thing_retry_1"`
 }
 ```	
 	 
