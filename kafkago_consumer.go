@@ -10,18 +10,19 @@ import (
 )
 
 type kafkagoConsumer struct {
-	gen          *kafka.Generation
-	group        *kafka.ConsumerGroup
-	topicNames   []string
-	brokers      []string
-	initialized  chan bool
-	topicConfig  map[string]TopicConfig
-	failMessages chan failedMessage
+	gen              *kafka.Generation
+	group            *kafka.ConsumerGroup
+	topicNames       []string
+	brokers          []string
+	initialized      chan bool
+	topicConfig      map[string]TopicConfig
+	procDependencies ProcessorDependencies
+	failMessages     chan failedMessage
 }
 
 func newKafkagoConsumer(groupID string, brokers []string,
 	topicNames []string, topicConf map[string]TopicConfig,
-	tls *tls.Config) (c kafkagoConsumer, e error) {
+	pd ProcessorDependencies, tls *tls.Config) (c kafkagoConsumer, e error) {
 
 	lg := logger.New(context.Background(), "")
 
@@ -43,10 +44,11 @@ func newKafkagoConsumer(groupID string, brokers []string,
 	}
 
 	c = kafkagoConsumer{
-		topicConfig: topicConf,
-		topicNames:  topicNames,
-		brokers:     brokers,
-		group:       group}
+		topicConfig:      topicConf,
+		topicNames:       topicNames,
+		brokers:          brokers,
+		group:            group,
+		procDependencies: pd}
 
 	c.initialized <- true
 	return
@@ -107,7 +109,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 				offset = msg.Offset
 
 				m := newKafkaGoMessage(msg, conf.messageCodec)
-				e = conf.MessageProcessor(ctx, m)
+				e = conf.MessageProcessor(ctx, c.procDependencies, m)
 
 				if e != nil {
 					// failed message processing

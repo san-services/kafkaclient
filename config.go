@@ -45,38 +45,41 @@ const (
 // Config holds specifics used to configure different
 // part of the kafka client
 type Config struct {
-	KafkaVersion    string
-	Brokers         []string
-	Topics          []TopicConfig
-	SchemaRegURL    string
-	ConsumerType    consumerType
-	ConsumerGroupID string
-	ProducerType    producerType
-	ReadFromOldest  bool
-	TLS             *tls.Config
-	Debug           bool
+	KafkaVersion     string
+	Brokers          []string
+	Topics           []TopicConfig
+	SchemaRegURL     string
+	ConsumerType     consumerType
+	ConsumerGroupID  string
+	ProcDependencies ProcessorDependencies // injectable dependencies for message processors
+	ProducerType     producerType
+	ReadFromOldest   bool
+	TLS              *tls.Config
+	Debug            bool
 }
 
 // NewConfig constructs and returns a Config struct
 func NewConfig(
 	ctx context.Context, version string, brokers []string,
-	topics []TopicConfig, schemaRegURL string, consType consumerType,
-	groupID string, prodType producerType, readFromOldest bool,
+	topics []TopicConfig, procDependencies ProcessorDependencies,
+	schemaRegURL string, consType consumerType, groupID string,
+	prodType producerType, readFromOldest bool,
 	tls *tls.Config, debug bool) (c Config, e error) {
 
 	lg := logger.New(ctx, "")
 
 	c = Config{
-		KafkaVersion:    version,
-		Brokers:         brokers,
-		Topics:          topics,
-		SchemaRegURL:    schemaRegURL,
-		ConsumerType:    consType,
-		ConsumerGroupID: groupID,
-		ProducerType:    prodType,
-		ReadFromOldest:  readFromOldest,
-		TLS:             tls,
-		Debug:           debug}
+		KafkaVersion:     version,
+		Brokers:          brokers,
+		Topics:           topics,
+		SchemaRegURL:     schemaRegURL,
+		ConsumerType:     consType,
+		ConsumerGroupID:  groupID,
+		ProcDependencies: procDependencies,
+		ProducerType:     prodType,
+		ReadFromOldest:   readFromOldest,
+		TLS:              tls,
+		Debug:            debug}
 
 	sr, e := newSchemaReg(schemaRegURL, tls, c.TopicMap())
 	if e != nil {
@@ -152,5 +155,5 @@ type TopicConfig struct {
 	// Schema is an optional string representation of the topic schema
 	Schema           string
 	SchemaVersion    int
-	MessageProcessor func(context.Context, ConsumerMessage) error
+	MessageProcessor func(context.Context, ProcessorDependencies, ConsumerMessage) error
 }

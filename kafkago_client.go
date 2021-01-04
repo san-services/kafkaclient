@@ -20,7 +20,8 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 
 	consumer := getKafkaGoConsumer(ctx,
 		conf.ConsumerGroupID, conf.Brokers,
-		conf.ReadTopicNames(), conf.TopicMap(), conf.TLS)
+		conf.ReadTopicNames(), conf.TopicMap(), 
+		conf.TLS, conf.ProcDependencies)
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
 	if e != nil {
@@ -107,12 +108,13 @@ func (c *KafkaGoClient) handleProcessingFail() (e error) {
 
 func getKafkaGoConsumer(ctx context.Context,
 	groupID string, brokers []string, topicNames []string,
-	topicMap map[string]TopicConfig, tls *tls.Config) *kafkagoConsumer {
+	topicMap map[string]TopicConfig, tls *tls.Config,
+	pd ProcessorDependencies) *kafkagoConsumer {
 
 	lg := logger.New(ctx, "")
 
 	c, e := newKafkagoConsumer(groupID,
-		brokers, topicNames, topicMap, tls)
+		brokers, topicNames, topicMap, pd, tls)
 
 	if e != nil {
 		// retry init in background on fail
@@ -122,7 +124,7 @@ func getKafkaGoConsumer(ctx context.Context,
 				time.Sleep(retryInitDelay)
 
 				c, e = newKafkagoConsumer(groupID,
-					brokers, topicNames, topicMap, tls)
+					brokers, topicNames, topicMap, pd, tls)
 			}
 		}(e)
 	}

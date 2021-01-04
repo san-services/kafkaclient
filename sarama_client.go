@@ -38,8 +38,10 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	consumer := getSaramaConsumer(ctx, sc, conf.ConsumerGroupID,
-		conf.TopicMap(), conf.ReadTopicNames(), conf.Brokers)
+	consumer := getSaramaConsumer(ctx, sc,
+		conf.ConsumerGroupID,
+		conf.TopicMap(), conf.ReadTopicNames(),
+		conf.Brokers, conf.ProcDependencies)
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
 	if e != nil {
@@ -154,13 +156,13 @@ func getSaramaConf(ctx context.Context, kafkaVersion string,
 }
 
 func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
-	groupID string, topicMap map[string]TopicConfig,
-	topicNames []string, brokers []string) *saramaConsumer {
+	groupID string, topicMap map[string]TopicConfig, topicNames []string,
+	brokers []string, pd ProcessorDependencies) *saramaConsumer {
 
 	lg := logger.New(ctx, "")
 
 	c, e := newSaramaConsumer(ctx,
-		sc, groupID, topicMap, topicNames, brokers)
+		sc, groupID, topicMap, topicNames, brokers, pd)
 
 	if e != nil {
 		// retry init in background on fail
@@ -170,7 +172,7 @@ func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
 				time.Sleep(retryInitDelay)
 
 				c, e = newSaramaConsumer(ctx,
-					sc, groupID, topicMap, topicNames, brokers)
+					sc, groupID, topicMap, topicNames, brokers, pd)
 			}
 		}(e)
 	}

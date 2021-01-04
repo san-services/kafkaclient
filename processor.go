@@ -6,7 +6,11 @@ import (
 	logger "github.com/disturb16/apilogger"
 )
 
-func DefaultProcessor(ctx context.Context, msg ConsumerMessage) error {
+type ProcessorDependencies interface{}
+
+func DefaultProcessor(ctx context.Context,
+	dependencies ProcessorDependencies, msg ConsumerMessage) error {
+
 	lg := logger.New(ctx, "")
 
 	lg.Info(logger.LogCatUncategorized,

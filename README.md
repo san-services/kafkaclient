@@ -44,10 +44,17 @@ func main() {
         },
     }
 
+    // you can (optionally) configure a struct to inject important
+    // data / data structures into your message processors, e.g. in 
+    // order to access service-layer functionality
+    pd := processorDependencies{
+        service: mydomain.NewService()}
+
     config, e := kafkaclient.NewConfig(ctx, 
         "2.5.0", 
         []string{"127.0.0.1"}, 
         topics, 
+        pd,
         "", 
         kafkaclient.ConsumerTypeGroup,
         "test_consumer", 
@@ -77,7 +84,33 @@ func main() {
     }
 }
 
-func processTestTopic(ctx context.Context, msg kafkaclient.ConsumerMessage) (e error) {
+type processorDependencies struct {
+    service mydomain.Service
+}
+
+func processTestTopic(ctx context.Context, 
+    dependencies kafkaclient.ProcessorDependencies, 
+    msg kafkaclient.ConsumerMessage) (e error) {
+
+    d, ok := dependencies.(processorDependencies)
+	if !ok {
+        e = errors.New("kafka processor incorrectly configured")
+		log.Println(e)
+		return
+    } 
+
+    data := testTopicAvroMessage{}
+    e = msg.Unmarshall(ctx, &data)
+    if e != nil {
+        log.Println(e)
+		return
+    }
+    
+    e = dependencies.service.Save(ctx, data.ID, data.Name)
+     if e != nil {
+        log.Println(e)
+    }
+
 	return
 }
 
