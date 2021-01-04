@@ -93,10 +93,10 @@ func processTestTopic(ctx context.Context,
     msg kafkaclient.ConsumerMessage) (e error) {
 
     d, ok := dependencies.(processorDependencies)
-	if !ok {
+    if !ok {
         e = errors.New("kafka processor incorrectly configured")
-		log.Println(e)
-		return
+        log.Println(e)
+        return
     } 
 
     data := testTopicAvroMessage{}
@@ -107,11 +107,11 @@ func processTestTopic(ctx context.Context,
     }
     
     e = dependencies.service.Save(ctx, data.ID, data.Name)
-     if e != nil {
+    if e != nil {
         log.Println(e)
     }
 
-	return
+    return
 }
 
 type testTopicAvroMessage struct {
