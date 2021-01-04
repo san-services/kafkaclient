@@ -10,23 +10,24 @@ import (
 
 // must implement sarama.ConsumerGroupHandler
 type saramaConsumer struct {
-	groupID      string
-	group        sarama.ConsumerGroup
-	config       *sarama.Config
-	topicConf    map[string]TopicConfig
-	topicNames   []string
-	brokers      []string
-	ready        chan bool
-	failMessages chan failedMessage
-	initialized  chan bool
-	cancel       context.CancelFunc
-	ctx          context.Context
+	groupID          string
+	group            sarama.ConsumerGroup
+	config           *sarama.Config
+	topicConf        map[string]TopicConfig
+	topicNames       []string
+	brokers          []string
+	procDependencies ProcessorDependencies
+	ready            chan bool
+	failMessages     chan failedMessage
+	initialized      chan bool
+	cancel           context.CancelFunc
+	ctx              context.Context
 }
 
 func newSaramaConsumer(ctx context.Context,
 	saramaConf *sarama.Config, groupID string,
-	topicConf map[string]TopicConfig, topicNames []string,
-	brokers []string) (c saramaConsumer, e error) {
+	topicConf map[string]TopicConfig, topicNames []string, brokers []string,
+	pd ProcessorDependencies) (c saramaConsumer, e error) {
 
 	lg := logger.New(ctx, "")
 
@@ -41,13 +42,14 @@ func newSaramaConsumer(ctx context.Context,
 	consumerCtx, cancel := context.WithCancel(context.Background())
 
 	c = saramaConsumer{
-		groupID:    groupID,
-		config:     saramaConf,
-		topicConf:  topicConf,
-		topicNames: topicNames,
-		brokers:    brokers,
-		cancel:     cancel,
-		ctx:        consumerCtx}
+		groupID:          groupID,
+		config:           saramaConf,
+		topicConf:        topicConf,
+		topicNames:       topicNames,
+		brokers:          brokers,
+		procDependencies: pd,
+		cancel:           cancel,
+		ctx:              consumerCtx}
 
 	c.initialized <- true
 	return
@@ -125,7 +127,7 @@ func (c *saramaConsumer) ConsumeClaim(
 			lg.Infof(logger.LogCatUncategorized,
 				infoEvent("message claimed", msg.Topic, msg.Partition, msg.Offset))
 
-			e = conf.MessageProcessor(session.Context(), m)
+			e = conf.MessageProcessor(session.Context(), c.procDependencies, m)
 			if e != nil {
 				lg.Error(logger.LogCatUncategorized, e)
 
