@@ -76,7 +76,7 @@ func main() {
 
     kc.StartConsume(ctx)
 
-    e := kc.kafkaClient.ProduceMessage(ctx, TestTopic, 
+    e := kc.ProduceMessage(ctx, TestTopic, 
 	    "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
 
     if e != nil {
@@ -103,7 +103,7 @@ func processTestTopic(ctx context.Context,
     e = msg.Unmarshall(ctx, &data)
     if e != nil {
         log.Println(e)
-		return
+        return
     }
     
     e = dependencies.service.Save(ctx, data.ID, data.Name)
