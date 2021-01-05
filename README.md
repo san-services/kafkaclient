@@ -98,6 +98,12 @@ func processTestTopic(ctx context.Context,
         log.Println(e)
         return
     } 
+    
+    if d == nil {
+    	e = errors.New("kafka processor dependencies should not be nil")
+        log.Println(e)
+        return
+    }
 
     data := testTopicAvroMessage{}
     e = msg.Unmarshall(ctx, &data)
@@ -106,7 +112,7 @@ func processTestTopic(ctx context.Context,
         return
     }
     
-    e = dependencies.service.Save(ctx, data.ID, data.Name)
+    e = d.service.Save(ctx, data.ID, data.Name)
     if e != nil {
         log.Println(e)
     }
