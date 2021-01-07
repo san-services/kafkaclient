@@ -25,7 +25,7 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (c *KafkaGoClient) CancelConsume() (e error) {
 
 	e = c.consumer.group.Close()
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaConsumerClose, e)
 		return
 	}
 
@@ -72,13 +72,13 @@ func (c *KafkaGoClient) ProduceMessage(
 
 	if !c.producer.initialized {
 		e = errProducerUninit
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 		return
 	}
 
 	e = c.producer.produceMessage(ctx, topic, key, msg)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (c *KafkaGoClient) handleProcessingFail() (e error) {
 				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
 
 			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaProduce, e)
 			}
 		}
 	}
@@ -120,7 +120,7 @@ func getKafkaGoConsumer(ctx context.Context,
 		// retry init in background on fail
 		go func(e error) {
 			for e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaConsumerInit, e)
 				time.Sleep(retryInitDelay)
 
 				c, e = newKafkagoConsumer(groupID,

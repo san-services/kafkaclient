@@ -96,13 +96,13 @@ func (ed avroEncoderDecoder) Encode(
 
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 
 	b, e = codec.BinaryFromNative(nil, dataMap)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	// convert binary message into a map of data
 	data, e := ed.binaryToMap(ctx, topic, b)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
@@ -221,7 +221,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 		v, ok := v.(map[string]interface{})
 		if !ok {
 			e = errMessageFmt
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaDecode, e)
 			return
 		}
 
@@ -239,13 +239,13 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 			nestedBytes, ok := v["bytes"].([]byte)
 			if !ok {
 				e = errMessageFmt
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaDecode, e)
 				return
 			}
 
 			e = ed.Decode(ctx, fieldInfo.TopicTag, nestedBytes, nestedMsg)
 			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaDecode, e)
 				return
 			}
 
@@ -264,7 +264,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 		if tarFieldType != mapValType {
 			e = errUnmarshallFieldType(fieldInfo.Name, tarFieldType, mapValType)
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaDecode, e)
 			return
 		}
 
@@ -284,7 +284,7 @@ func (ed avroEncoderDecoder) GetSchemaID(
 
 	_, id, e = ed.schemaReg.GetSchemaByTopic(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 	}
 
 	return
@@ -297,19 +297,19 @@ func (ed avroEncoderDecoder) binaryToMap(
 
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	i, _, e := codec.NativeFromBinary(b)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
 	data, ok := i.(map[string]interface{})
 	if !ok {
 		e = errMessageFmt
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
@@ -323,13 +323,13 @@ func (ed avroEncoderDecoder) getTopicCodec(
 
 	schema, _, e := ed.schemaReg.GetSchemaByTopic(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
 	c, e = goavro.NewCodec(schema)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	return

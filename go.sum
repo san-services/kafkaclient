@@ -63,6 +63,8 @@ github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 h1:MkV+77GLUNo
 github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/san-services/apilogger v1.0.1 h1:nyAMDpzqW+hnOI8IWt6m6qtoMscfYGycfw+6Areh0hU=
 github.com/san-services/apilogger v1.0.1/go.mod h1:SEuyrwQCFbtcEqT1/qVytGQ22omjaWAmyF4YBpSNVFI=
+github.com/san-services/apilogger v1.1.0 h1:yBHiXekF9ciiyQrw7rPFhMX5y7+lx+CMfefmZbM4DgA=
+github.com/san-services/apilogger v1.1.0/go.mod h1:SEuyrwQCFbtcEqT1/qVytGQ22omjaWAmyF4YBpSNVFI=
 github.com/segmentio/kafka-go v0.4.2 h1:QXZ6q9Bu1JkAJQ/CQBb2Av8pFRG8LQ0kWCrLXgQyL8c=
 github.com/segmentio/kafka-go v0.4.2/go.mod h1:Inh7PqOsxmfgasV8InZYKVXWsdjcCq2d9tFV75GLbuM=
 github.com/segmentio/kafka-go v0.4.8 h1:LO36H2tb7RcCRjsYzT/qf7xE+vRBXgddZDD82e1eiWY=

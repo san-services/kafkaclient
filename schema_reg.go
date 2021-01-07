@@ -66,7 +66,7 @@ func (sr *schemaReg) GetSchemaByID(
 
 	schema, e = sr.client.GetSchemaByID(id)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 	}
 
 	return
@@ -83,7 +83,7 @@ func (sr *schemaReg) GetSchemaByTopic(
 
 	s, e := sr.client.GetLatestSchema(subject(topic))
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
@@ -91,13 +91,13 @@ func (sr *schemaReg) GetSchemaByTopic(
 	if s.Version < topicConf.SchemaVersion {
 		schemaID, e = sr.RegisterSchema(ctx, topic)
 		if e != nil {
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaSchemaReg, e)
 			return
 		}
 
 		schema, e = sr.GetSchemaByID(ctx, schemaID)
 		if e != nil {
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaSchemaReg, e)
 		}
 	}
 
@@ -114,7 +114,7 @@ func (sr *schemaReg) RegisterSchema(
 
 	schemaID, e = sr.client.RegisterNewSchema(subject(topic), sr.topics[topic].Schema)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 	}
 
 	return

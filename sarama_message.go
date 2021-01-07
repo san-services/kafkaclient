@@ -29,7 +29,7 @@ func (m SaramaMessage) Unmarshall(ctx context.Context, native interface{}) (e er
 
 	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	return

@@ -13,7 +13,7 @@ func DefaultProcessor(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	lg.Info(logger.LogCatUncategorized,
+	lg.Info(logger.LogCatKafkaProcessMessage,
 		infoEvent("message process with default processor",
 			msg.Topic(), msg.Partition(), msg.Offset()))
 

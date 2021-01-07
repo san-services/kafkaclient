@@ -83,7 +83,7 @@ func NewConfig(
 
 	sr, e := newSchemaReg(schemaRegURL, tls, c.TopicMap())
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 

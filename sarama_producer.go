@@ -31,7 +31,7 @@ func newSaramaProducer(ctx context.Context,
 	}
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProducerInit, e)
 	}
 
 	p.topicConf = topicConf
@@ -46,7 +46,7 @@ func (p *saramaProducer) produceMessage(
 
 	se, e := p.getSaramaEncoder(ctx, p.topicConf[topic], msg)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (p *saramaProducer) produceMessage(
 	}
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 	}
 
 	return
@@ -77,10 +77,10 @@ func (p *saramaProducer) handleAsyncResponses(ctx context.Context) {
 	for {
 		select {
 		case message := <-(p.producer.(sarama.AsyncProducer)).Successes():
-			lg.Infof(logger.LogCatUncategorized,
+			lg.Infof(logger.LogCatKafkaProduce,
 				infoEvent(infoProduceSuccess, message.Topic, message.Partition, message.Offset))
 		case e := <-(p.producer.(sarama.AsyncProducer)).Errors():
-			lg.Error(logger.LogCatUncategorized, errProduceFail, e)
+			lg.Error(logger.LogCatKafkaProduce, errProduceFail, e)
 		}
 	}
 }
@@ -110,7 +110,7 @@ func (p *saramaProducer) getSaramaEncoder(ctx context.Context,
 	}
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 	}
 
 	return

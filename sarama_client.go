@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	logger "github.com/san-services/apilogger"
 	"github.com/hashicorp/go-uuid"
+	logger "github.com/san-services/apilogger"
 )
 
 const (
@@ -34,7 +34,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		conf.ConsumerGroupID, conf.ReadFromOldest, conf.TLS)
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaConfig, e)
 		return
 	}
 
@@ -45,7 +45,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
@@ -84,13 +84,13 @@ func (c *SaramaClient) ProduceMessage(
 
 	if !c.producer.initialized {
 		e = errProducerUninit
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 		return
 	}
 
 	e = c.producer.produceMessage(ctx, topic, key, msg)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 	}
 
 	return
@@ -111,7 +111,7 @@ func (c *SaramaClient) handleProcessingFail() (e error) {
 				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
 
 			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaProduce, e)
 			}
 		}
 	}
@@ -127,13 +127,13 @@ func getSaramaConf(ctx context.Context, kafkaVersion string,
 	version, e := sarama.ParseKafkaVersion(kafkaVersion)
 	if e != nil {
 		e = errKafkaVersion(kafkaVersion)
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaConfig, e)
 		return
 	}
 
 	id, e := uuid.GenerateUUID()
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaConfig, e)
 		return
 	}
 
@@ -168,7 +168,7 @@ func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
 		// retry init in background on fail
 		go func(e error) {
 			for e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaConsumerInit, e)
 				time.Sleep(retryInitDelay)
 
 				c, e = newSaramaConsumer(ctx,
@@ -193,7 +193,7 @@ func getSaramaProducer(ctx context.Context,
 		// retry init in background on fail
 		go func(e error) {
 			for e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaProducerInit, e)
 				time.Sleep(retryInitDelay)
 
 				p, e = newSaramaProducer(ctx,

@@ -53,10 +53,10 @@ func (p *kafkagoProducer) produceMessage(
 	lg := logger.New(ctx, "")
 
 	topicConf := p.topicConf[topic]
-	msgbytes, e := topicConf.messageCodec.Encode(ctx, topic, msg)
 
+	msgbytes, e := topicConf.messageCodec.Encode(ctx, topic, msg)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (p *kafkagoProducer) produceMessage(
 
 	e = p.writers[topic].WriteMessages(ctx, m)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaProduce, e)
 		return
 	}
 
@@ -78,9 +78,9 @@ func (p *kafkagoProducer) handleAsyncResponses(messages []kafka.Message, e error
 
 	for _, m := range messages {
 		if e != nil {
-			lg.Error(logger.LogCatUncategorized, errProduceFail(m.Topic), e)
+			lg.Error(logger.LogCatKafkaProduce, errProduceFail(m.Topic), e)
 		} else {
-			lg.Infof(logger.LogCatUncategorized,
+			lg.Infof(logger.LogCatKafkaProduce,
 				infoEvent(infoProduceSuccess, m.Topic, int32(m.Partition), m.Offset))
 		}
 	}
