@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 var (
@@ -83,7 +83,7 @@ func NewConfig(
 
 	sr, e := newSchemaReg(schemaRegURL, tls, c.TopicMap())
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 

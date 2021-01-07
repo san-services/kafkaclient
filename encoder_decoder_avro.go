@@ -4,8 +4,8 @@ import (
 	"context"
 	"reflect"
 
-	logger "github.com/disturb16/apilogger"
 	"github.com/linkedin/goavro"
+	logger "github.com/san-services/apilogger"
 )
 
 var (
@@ -80,15 +80,11 @@ func (ed avroEncoderDecoder) Encode(
 	rv := reflect.ValueOf(s)
 	if rv.Kind() != reflect.Struct {
 		e = errStructRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 
-	fields, e := getFieldMap(ctx, rv)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	fields := getFieldMap(ctx, rv)
 
 	dataMap := make(map[string]interface{})
 	for k, v := range fields {
@@ -100,13 +96,13 @@ func (ed avroEncoderDecoder) Encode(
 
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 
 	b, e = codec.BinaryFromNative(nil, dataMap)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 
@@ -203,7 +199,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		e = errPtrRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 	rv = rv.Elem()
@@ -211,16 +207,12 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	// convert binary message into a map of data
 	data, e := ed.binaryToMap(ctx, topic, b)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
 	// get metadata for all fields in target struct
-	fields, e := getFieldMap(ctx, rv)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	fields := getFieldMap(ctx, rv)
 
 	// range through data map and insert data into
 	// target struct, field-by-field
@@ -229,7 +221,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 		v, ok := v.(map[string]interface{})
 		if !ok {
 			e = errMessageFmt
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaDecode, e)
 			return
 		}
 
@@ -247,13 +239,13 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 			nestedBytes, ok := v["bytes"].([]byte)
 			if !ok {
 				e = errMessageFmt
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaDecode, e)
 				return
 			}
 
 			e = ed.Decode(ctx, fieldInfo.TopicTag, nestedBytes, nestedMsg)
 			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaDecode, e)
 				return
 			}
 
@@ -272,7 +264,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 		if tarFieldType != mapValType {
 			e = errUnmarshallFieldType(fieldInfo.Name, tarFieldType, mapValType)
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaDecode, e)
 			return
 		}
 
@@ -292,7 +284,7 @@ func (ed avroEncoderDecoder) GetSchemaID(
 
 	_, id, e = ed.schemaReg.GetSchemaByTopic(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 	}
 
 	return
@@ -305,19 +297,19 @@ func (ed avroEncoderDecoder) binaryToMap(
 
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	i, _, e := codec.NativeFromBinary(b)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
 	data, ok := i.(map[string]interface{})
 	if !ok {
 		e = errMessageFmt
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
@@ -331,13 +323,13 @@ func (ed avroEncoderDecoder) getTopicCodec(
 
 	schema, _, e := ed.schemaReg.GetSchemaByTopic(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
 	c, e = goavro.NewCodec(schema)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	return
@@ -363,7 +355,7 @@ func newField(name string, val interface{},
 }
 
 func getFieldMap(ctx context.Context,
-	rv reflect.Value) (m map[string]field, e error) {
+	rv reflect.Value) (m map[string]field) {
 
 	m = make(map[string]field)
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -30,7 +30,7 @@ func (m KafkaGoMessage) Unmarshall(ctx context.Context, native interface{}) (e e
 
 	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	return

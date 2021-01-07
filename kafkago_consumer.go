@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -39,7 +39,7 @@ func newKafkagoConsumer(groupID string, brokers []string,
 		Dialer:      d})
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaConsumerInit, e)
 		return
 	}
 
@@ -64,7 +64,7 @@ func (c *kafkagoConsumer) startConsume(ctx context.Context) {
 		// a new generation occurs, which results in a new *kafka.Generation instance
 		c.gen, e = c.group.Next(context.TODO())
 		if e != nil {
-			lg.Error(logger.LogCatUncategorized, e)
+			lg.Error(logger.LogCatKafkaConsume, e)
 			break
 		}
 
@@ -103,7 +103,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 			for {
 				msg, e := reader.ReadMessage(ctx)
 				if e != nil {
-					lg.Error(logger.LogCatUncategorized, errMsgRead(e))
+					lg.Error(logger.LogCatKafkaConsume, errMsgRead(e))
 					return
 				}
 				offset = msg.Offset
@@ -119,7 +119,7 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 
 					e = reader.SetOffset(offset)
 					if e != nil {
-						lg.Error(logger.LogCatUncategorized, errSetOffset(e))
+						lg.Error(logger.LogCatKafkaCommitOffset, errSetOffset(e))
 					}
 
 					c.commitOffset(ctx, topic, partition, offset-1)
@@ -141,14 +141,14 @@ func (c *kafkagoConsumer) commitOffset(
 		map[string]map[int]int64{topic: {partition: offset}})
 
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, errCommit(e))
+		lg.Error(logger.LogCatKafkaCommitOffset, errCommit(e))
 
 		// retry
 		e := c.gen.CommitOffsets(
 			map[string]map[int]int64{topic: {partition: offset}})
 
 		if e != nil {
-			lg.Error(logger.LogCatUncategorized, errCommit(e))
+			lg.Error(logger.LogCatKafkaCommitOffset, errCommit(e))
 		}
 	}
 }
