@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 var (

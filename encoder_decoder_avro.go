@@ -4,8 +4,8 @@ import (
 	"context"
 	"reflect"
 
-	logger "github.com/disturb16/apilogger"
 	"github.com/linkedin/goavro"
+	logger "github.com/san-services/apilogger"
 )
 
 var (
@@ -80,15 +80,11 @@ func (ed avroEncoderDecoder) Encode(
 	rv := reflect.ValueOf(s)
 	if rv.Kind() != reflect.Struct {
 		e = errStructRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 
-	fields, e := getFieldMap(ctx, rv)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	fields := getFieldMap(ctx, rv)
 
 	dataMap := make(map[string]interface{})
 	for k, v := range fields {
@@ -203,7 +199,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		e = errPtrRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 	rv = rv.Elem()
@@ -216,11 +212,7 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	}
 
 	// get metadata for all fields in target struct
-	fields, e := getFieldMap(ctx, rv)
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
+	fields := getFieldMap(ctx, rv)
 
 	// range through data map and insert data into
 	// target struct, field-by-field
@@ -363,7 +355,7 @@ func newField(name string, val interface{},
 }
 
 func getFieldMap(ctx context.Context,
-	rv reflect.Value) (m map[string]field, e error) {
+	rv reflect.Value) (m map[string]field) {
 
 	m = make(map[string]field)
 

@@ -3,7 +3,7 @@ package kafkaclient
 import (
 	"context"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 type ProcessorDependencies interface{}

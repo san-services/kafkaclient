@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 	"github.com/segmentio/kafka-go"
 )
 

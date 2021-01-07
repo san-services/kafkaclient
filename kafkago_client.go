@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 // KafkaGoClient implements the KafkaClient interface
@@ -20,7 +20,7 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 
 	consumer := getKafkaGoConsumer(ctx,
 		conf.ConsumerGroupID, conf.Brokers,
-		conf.ReadTopicNames(), conf.TopicMap(), 
+		conf.ReadTopicNames(), conf.TopicMap(),
 		conf.TLS, conf.ProcDependencies)
 
 	sr, e := newSchemaReg(conf.SchemaRegURL, conf.TLS, conf.TopicMap())

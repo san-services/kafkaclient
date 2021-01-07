@@ -6,7 +6,7 @@ import (
 	"errors"
 	"reflect"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 var (
@@ -30,7 +30,7 @@ func newSaramaStructEncoder(ctx context.Context, topic string,
 
 	if reflect.ValueOf(msgStruct).Kind() != reflect.Ptr {
 		e = errPtrRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 

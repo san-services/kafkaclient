@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 	"github.com/hashicorp/go-uuid"
 )
 

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	logger "github.com/disturb16/apilogger"
 	schemaregistry "github.com/landoop/schema-registry"
+	logger "github.com/san-services/apilogger"
 )
 
 // schemaRegistry is an interface implemented by kafka schema registry clients
