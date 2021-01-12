@@ -1,4 +1,4 @@
-module github.com/ashleighj/kafkaclient
+module github.com/ashleighj/kafkaclient/v2
 
 go 1.12
 
