@@ -1,4 +1,4 @@
-module github.com/san-services/kafkaclient
+module github.com/san-services/kafkaclient/v2
 
 go 1.12
 
