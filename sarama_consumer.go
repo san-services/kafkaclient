@@ -133,7 +133,15 @@ func (c *saramaConsumer) ConsumeClaim(
 				lg.Error(logger.LogCatKafkaProcessMessage, e)
 
 				if conf.FailedProcessingTopic != "" {
-					c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e)
+					select {
+					case c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e):
+						lg.Info(logger.LogCatKafkaConsume, infoEvent("failed message sent to fail handler",
+							msg.Topic, int32(msg.Partition), msg.Offset))
+					default:
+						lg.Error(logger.LogCatKafkaConsume,
+							errEvent("failed message not sent to fail handler",
+								msg.Topic, int32(msg.Partition), msg.Offset))
+					}
 				}
 				continue
 			}

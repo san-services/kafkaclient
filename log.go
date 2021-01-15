@@ -18,6 +18,9 @@ var (
 	// ERROR
 	// general
 	errNotImpl = errors.New("functionality not yet implemented")
+	errEvent   = func(e string, topic string, partition int32, offset int64) error {
+		return fmt.Errorf("%s: topic[%s], partition[%d], offset[%d]", e, topic, partition, offset)
+	}
 
 	// config
 	errTopicConfMissing = errors.New("topic config missing")
