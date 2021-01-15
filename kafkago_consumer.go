@@ -50,7 +50,7 @@ func newKafkagoConsumer(groupID string, brokers []string,
 		group:            group,
 		procDependencies: pd}
 
-	c.initialized = make(chan bool)
+	c.initialized = make(chan bool, 1)
 	c.failMessages = make(chan failedMessage)
 
 	<-c.initialized

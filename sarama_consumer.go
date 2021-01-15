@@ -49,7 +49,7 @@ func newSaramaConsumer(ctx context.Context,
 		cancel:           cancel,
 		ctx:              consumerCtx}
 
-	c.initialized = make(chan bool)
+	c.initialized = make(chan bool, 1)
 	c.failMessages = make(chan failedMessage)
 
 	<-c.initialized
