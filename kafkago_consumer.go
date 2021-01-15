@@ -53,7 +53,11 @@ func newKafkagoConsumer(groupID string, brokers []string,
 	c.initialized = make(chan bool, 1)
 	c.failMessages = make(chan failedMessage)
 
-	<-c.initialized
+	select {
+	case <-c.initialized:
+	default:
+		close(c.initialized)
+	}
 	return
 }
 
