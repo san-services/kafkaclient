@@ -31,12 +31,6 @@ func newSaramaConsumer(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	c.group, e = sarama.NewConsumerGroup(brokers, groupID, saramaConf)
-	if e != nil {
-		lg.Error(logger.LogCatKafkaConsumerInit, e)
-		return
-	}
-
 	consumerCtx, cancel := context.WithCancel(context.Background())
 
 	c = saramaConsumer{
@@ -48,6 +42,12 @@ func newSaramaConsumer(ctx context.Context,
 		procDependencies: pd,
 		cancel:           cancel,
 		ctx:              consumerCtx}
+
+	c.group, e = sarama.NewConsumerGroup(brokers, groupID, saramaConf)
+	if e != nil {
+		lg.Error(logger.LogCatKafkaConsumerInit, e)
+		return
+	}
 
 	c.initialized = make(chan bool, 1)
 	c.failMessages = make(chan failedMessage)
