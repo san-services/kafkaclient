@@ -31,9 +31,7 @@ func newSaramaConsumer(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	c.group, e = sarama.NewConsumerGroup(
-		c.brokers, c.groupID, c.config)
-
+	c.group, e = sarama.NewConsumerGroup(brokers, groupID, saramaConf)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaConsumerInit, e)
 		return
