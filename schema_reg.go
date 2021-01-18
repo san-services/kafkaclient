@@ -51,6 +51,7 @@ func newSchemaReg(
 	client, e := schemaregistry.NewClient(url,
 		schemaregistry.UsingClient(httpsClient))
 
+
 	if e != nil {
 		return nil, e
 	}

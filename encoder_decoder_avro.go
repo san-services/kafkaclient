@@ -298,6 +298,7 @@ func (ed avroEncoderDecoder) binaryToMap(
 	codec, e := ed.getTopicCodec(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
+		return
 	}
 
 	i, _, e := codec.NativeFromBinary(b)

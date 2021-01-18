@@ -40,6 +40,7 @@ func newSaramaConsumer(ctx context.Context,
 		topicNames:       topicNames,
 		brokers:          brokers,
 		procDependencies: pd,
+		ready:            make(chan bool),
 		cancel:           cancel,
 		ctx:              consumerCtx}
 
