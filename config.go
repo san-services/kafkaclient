@@ -118,10 +118,9 @@ func (c Config) TopicMap() (m map[string]TopicConfig) {
 
 // ReadTopicNames constructs and returns a slice of all topic names
 func (c Config) ReadTopicNames() (n []string) {
-	n = make([]string, len(c.Topics))
-	for i, t := range c.Topics {
+	for _, t := range c.Topics {
 		if t.DoConsume {
-			n[i] = c.Topics[i].Name
+			n = append(n, t.Name)
 		}
 	}
 	return
@@ -129,10 +128,9 @@ func (c Config) ReadTopicNames() (n []string) {
 
 // WriteTopicNames constructs and returns a slice of all topic names
 func (c Config) WriteTopicNames() (n []string) {
-	n = make([]string, len(c.Topics))
-	for i, t := range c.Topics {
+	for _, t := range c.Topics {
 		if t.DoProduce {
-			n[i] = c.Topics[i].Name
+			n = append(n, t.Name)
 		}
 	}
 	return

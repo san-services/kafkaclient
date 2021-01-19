@@ -3,6 +3,7 @@ package kafkaclient
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
 	logger "github.com/san-services/apilogger"
@@ -74,7 +75,8 @@ func (c *saramaConsumer) startConsume(ctx context.Context) {
 			// when a server-side rebalance happens, the consumer
 			// session will need to be recreated to get the new claims
 			if e := (c.group).Consume(c.ctx, c.topicNames, c); e != nil {
-				lg.Fatal(logger.LogCatKafkaConsume, errConsumer(e))
+				lg.Error(logger.LogCatKafkaConsume, errConsumer(e))
+				time.Sleep(5 * time.Second)
 			}
 
 			// check if context was cancelled, signaling

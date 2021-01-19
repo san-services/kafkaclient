@@ -21,6 +21,7 @@ var (
 	errEvent   = func(e string, topic string, partition int32, offset int64) error {
 		return fmt.Errorf("%s: topic[%s], partition[%d], offset[%d]", e, topic, partition, offset)
 	}
+	errCacheItemType = errors.New("unexpected/invalid cache item type")
 
 	// config
 	errTopicConfMissing = errors.New("topic config missing")
@@ -46,7 +47,15 @@ var (
 	errPtrStructRequired   = errors.New("pointer to struct required")
 	errFieldValNil         = errors.New("field value is nil")
 	errUnmarshallFieldType = func(fName string, targetType reflect.Type, actualType reflect.Type) error {
+		tt := "nil"
+		if targetType != nil {
+			tt = targetType.String()
+		}
+		at := "nil"
+		if actualType != nil {
+			tt = actualType.String()
+		}
 		return fmt.Errorf("struct field [%s], currently type %s, should be type %s to match binary data",
-			fName, targetType.String(), actualType.String())
+			fName, tt, at)
 	}
 )
