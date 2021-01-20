@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Shopify/sarama"
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 // SaramaMessage holds sarama message contents
@@ -29,7 +29,7 @@ func (m SaramaMessage) Unmarshall(ctx context.Context, native interface{}) (e er
 
 	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaDecode, e)
 	}
 
 	return

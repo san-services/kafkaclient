@@ -3,9 +3,10 @@ package kafkaclient
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 // must implement sarama.ConsumerGroupHandler
@@ -31,14 +32,6 @@ func newSaramaConsumer(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	c.group, e = sarama.NewConsumerGroup(
-		c.brokers, c.groupID, c.config)
-
-	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
-		return
-	}
-
 	consumerCtx, cancel := context.WithCancel(context.Background())
 
 	c = saramaConsumer{
@@ -48,10 +41,24 @@ func newSaramaConsumer(ctx context.Context,
 		topicNames:       topicNames,
 		brokers:          brokers,
 		procDependencies: pd,
+		ready:            make(chan bool),
 		cancel:           cancel,
 		ctx:              consumerCtx}
 
-	c.initialized <- true
+	c.group, e = sarama.NewConsumerGroup(brokers, groupID, saramaConf)
+	if e != nil {
+		lg.Error(logger.LogCatKafkaConsumerInit, e)
+		return
+	}
+
+	c.initialized = make(chan bool, 1)
+	c.failMessages = make(chan failedMessage)
+
+	select {
+	case <-c.initialized:
+	default:
+		close(c.initialized)
+	}
 	return
 }
 
@@ -68,7 +75,8 @@ func (c *saramaConsumer) startConsume(ctx context.Context) {
 			// when a server-side rebalance happens, the consumer
 			// session will need to be recreated to get the new claims
 			if e := (c.group).Consume(c.ctx, c.topicNames, c); e != nil {
-				lg.Fatal(logger.LogCatUncategorized, errConsumer(e))
+				lg.Error(logger.LogCatKafkaConsume, errConsumer(e))
+				time.Sleep(5 * time.Second)
 			}
 
 			// check if context was cancelled, signaling
@@ -82,11 +90,11 @@ func (c *saramaConsumer) startConsume(ctx context.Context) {
 	}()
 
 	<-c.ready // await consumer set up
-	lg.Info(logger.LogCatUncategorized, infoConsumerReady)
+	lg.Info(logger.LogCatKafkaConsume, infoConsumerReady)
 
 	select {
 	case <-c.ctx.Done():
-		lg.Info(logger.LogCatUncategorized,
+		lg.Info(logger.LogCatKafkaConsume,
 			infoConsumerTerm("context cancelled"))
 	}
 
@@ -94,7 +102,7 @@ func (c *saramaConsumer) startConsume(ctx context.Context) {
 	wg.Wait()
 
 	if e := c.close(); e != nil {
-		lg.Fatal(logger.LogCatUncategorized, errConsumerClose(e))
+		lg.Fatal(logger.LogCatKafkaConsumerClose, errConsumerClose(e))
 	}
 
 	return
@@ -119,20 +127,28 @@ func (c *saramaConsumer) ConsumeClaim(
 
 			if conf.Name == "" || conf.messageCodec == nil {
 				e = errTopicConfMissing
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaConsume, e)
 				continue
 			}
 
 			m := newSaramaMessage(msg, conf.messageCodec)
-			lg.Infof(logger.LogCatUncategorized,
+			lg.Infof(logger.LogCatKafkaConsume,
 				infoEvent("message claimed", msg.Topic, msg.Partition, msg.Offset))
 
 			e = conf.MessageProcessor(session.Context(), c.procDependencies, m)
 			if e != nil {
-				lg.Error(logger.LogCatUncategorized, e)
+				lg.Error(logger.LogCatKafkaProcessMessage, e)
 
 				if conf.FailedProcessingTopic != "" {
-					c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e)
+					select {
+					case c.failMessages <- newFailedMessage(m, conf.FailedProcessingTopic, e):
+						lg.Info(logger.LogCatKafkaConsume, infoEvent("failed message sent to fail handler",
+							msg.Topic, int32(msg.Partition), msg.Offset))
+					default:
+						lg.Error(logger.LogCatKafkaConsume,
+							errEvent("failed message not sent to fail handler",
+								msg.Topic, int32(msg.Partition), msg.Offset))
+					}
 				}
 				continue
 			}
@@ -164,7 +180,7 @@ func (c *saramaConsumer) close() (e error) {
 
 	e = c.group.Close()
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, errConsumerClose(e))
+		lg.Error(logger.LogCatKafkaConsumerClose, errConsumerClose(e))
 	}
 
 	return

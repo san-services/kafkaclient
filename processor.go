@@ -3,7 +3,7 @@ package kafkaclient
 import (
 	"context"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 type ProcessorDependencies interface{}
@@ -13,7 +13,7 @@ func DefaultProcessor(ctx context.Context,
 
 	lg := logger.New(ctx, "")
 
-	lg.Info(logger.LogCatUncategorized,
+	lg.Info(logger.LogCatKafkaProcessMessage,
 		infoEvent("message process with default processor",
 			msg.Topic(), msg.Partition(), msg.Offset()))
 

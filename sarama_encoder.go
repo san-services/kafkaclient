@@ -6,7 +6,7 @@ import (
 	"errors"
 	"reflect"
 
-	logger "github.com/disturb16/apilogger"
+	logger "github.com/san-services/apilogger"
 )
 
 var (
@@ -30,7 +30,7 @@ func newSaramaStructEncoder(ctx context.Context, topic string,
 
 	if reflect.ValueOf(msgStruct).Kind() != reflect.Ptr {
 		e = errPtrRequired
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatInputValidation, e)
 		return
 	}
 
@@ -50,7 +50,7 @@ func (se *saramaStructEncoder) Encode() (b []byte, e error) {
 
 	b, e = be.Encode()
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
 	se.msgBinary = b
@@ -76,7 +76,7 @@ func newSaramaByteEncoder(ctx context.Context,
 
 	schemaID, e := ed.GetSchemaID(ctx, topic)
 	if e != nil {
-		lg.Error(logger.LogCatUncategorized, e)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 

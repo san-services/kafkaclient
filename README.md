@@ -9,6 +9,10 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 
 ## Use
 
+```
+   go get github.com/san-services/kafkaclient/v2
+```
+
 ```go
 const (
     TestTopic       = "test_topic"
