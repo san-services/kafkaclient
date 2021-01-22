@@ -6,14 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	cache "github.com/patrickmn/go-cache"
 	logger "github.com/san-services/apilogger"
-)
-
-var (
-	errNoEncoderDecoder = func(typ string) error {
-		return fmt.Errorf("%s message encoder/decoder not yet implemented", typ)
-	}
 )
 
 type consumerType string
@@ -59,33 +54,52 @@ type Config struct {
 	Debug            bool
 }
 
-// NewConfig constructs and returns a Config struct
-func NewConfig(
-	ctx context.Context, version string, brokers []string,
-	topics []TopicConfig, procDependencies ProcessorDependencies,
-	schemaRegURL string, consType consumerType, groupID string,
-	prodType producerType, readFromOldest bool,
-	tls *tls.Config, debug bool) (c Config, e error) {
-
+func (c *Config) validate() (e error) {
 	lg := logger.New(nil, "")
 
-	c = Config{
-		KafkaVersion:     version,
-		Brokers:          brokers,
-		Topics:           topics,
-		SchemaRegURL:     schemaRegURL,
-		ConsumerType:     consType,
-		ConsumerGroupID:  groupID,
-		ProcDependencies: procDependencies,
-		ProducerType:     prodType,
-		ReadFromOldest:   readFromOldest,
-		TLS:              tls,
-		Debug:            debug}
+	if c.KafkaVersion == "" {
+		errConfigMissing("KafkaVersion")
+		lg.Error(logger.LogCatKafkaConfig, e)
+		return
+	}
+	if c.Brokers == nil || len(c.Brokers) == 0 {
+		errConfigMissing("KafkaVersion")
+		lg.Error(logger.LogCatKafkaConfig, e)
+		return
+	}
+	if c.Topics == nil || len(c.Topics) == 0 {
+		errConfigMissing("KafkaVersion")
+		lg.Error(logger.LogCatKafkaConfig, e)
+		return
+	}
+
+	return
+}
+
+func (c *Config) finalize() {
+	lg := logger.New(nil, "")
 
 	sr, e := newSchemaReg(c.SchemaRegURL, c.TLS, c.TopicMap())
 	if e != nil {
 		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
+	}
+
+	if c.ConsumerType == "" {
+		c.ConsumerType = ConsumerTypeGroup
+	}
+
+	if c.ConsumerType == ConsumerTypeGroup && c.ConsumerGroupID == "" {
+		id, e := uuid.GenerateUUID()
+		if e != nil {
+			lg.Error(logger.LogCatKafkaConfig, e)
+			return
+		}
+		c.ConsumerGroupID = fmt.Sprintf("consumergroup_%s", id)
+	}
+
+	if c.ProducerType == "" {
+		c.ProducerType = ProducerTypeAsync
 	}
 
 	cacheTime := time.Minute * 10
@@ -113,8 +127,6 @@ func NewConfig(
 			return
 		}
 	}
-
-	return
 }
 
 // TopicMap constructs and returns a map of topic

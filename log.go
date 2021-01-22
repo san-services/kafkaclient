@@ -17,17 +17,21 @@ var (
 
 	// ERROR
 	// general
-	errNotImpl = errors.New("functionality not yet implemented")
-	errEvent   = func(e string, topic string, partition int32, offset int64) error {
+	errNotImpl       = errors.New("functionality not yet implemented")
+	errCacheItemType = errors.New("unexpected/invalid cache item type")
+	errEvent         = func(e string, topic string, partition int32, offset int64) error {
 		return fmt.Errorf("%s: topic[%s], partition[%d], offset[%d]", e, topic, partition, offset)
 	}
-	errCacheItemType = errors.New("unexpected/invalid cache item type")
 
 	// config
 	errTopicConfMissing = errors.New("topic config missing")
 	errKafkaVersion     = func(v string) error { return fmt.Errorf("error parsing kafka version [%s]", v) }
 	errInvalidBase      = func(base baseLibrary) error { return fmt.Errorf("cannot use unimplemented base library [%s]", base) }
 	errNoMessageFmt     = func(topic string) error { return fmt.Errorf("no message format specified for topic [%s]", topic) }
+	errConfigMissing    = func(attr string) error { return fmt.Errorf("required config attribute [%s] is missing", attr) }
+	errNoEncoderDecoder = func(typ string) error {
+		return fmt.Errorf("%s message encoder/decoder not yet implemented", typ)
+	}
 
 	// produce/consume
 	errConsumer        = func(e error) error { return fmt.Errorf("kafka consumer error - %s", e) }
