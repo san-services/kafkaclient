@@ -16,7 +16,7 @@ type kafkagoConsumer struct {
 	topicNames       []string
 	brokers          []string
 	initialized      chan bool
-	consumerWait     sync.WaitGroup
+	consumerWait     *sync.WaitGroup
 	topicConfig      map[string]TopicConfig
 	procDependencies ProcessorDependencies
 	failMessages     chan failedMessage
@@ -50,7 +50,7 @@ func newKafkagoConsumer(groupID string, brokers []string,
 		topicNames:       topicNames,
 		brokers:          brokers,
 		group:            group,
-		consumerWait:     sync.WaitGroup{},
+		consumerWait:     new(sync.WaitGroup),
 		procDependencies: pd}
 
 	c.initialized = make(chan bool, 1)
