@@ -12,7 +12,7 @@ func TestUnmarshall_avro(t *testing.T) {
 	ctx := context.Background()
 
 	sr := mockSchemaReg{}
-	ed := newAvroEncDec(sr)
+	ed := newAvroEncDec(sr, nil, 0)
 
 	k := []byte("testkey")
 	v := testTopicMessage{ID: 1, Name: "unmarshall test"}
@@ -33,7 +33,7 @@ func TestUnmarshall_avro(t *testing.T) {
 	msg := newSaramaMessage(&m, ed)
 
 	decoded := testTopicMessage{}
-	e = msg.Unmarshall(ctx, &decoded)
+	e = msg.Unmarshall(&decoded)
 	if e != nil {
 		t.Error(e)
 	}

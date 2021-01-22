@@ -33,13 +33,12 @@ type avroEncoderDecoder struct {
 }
 
 // NewAvroEncDec constructs and returns a new avro message EncoderDecoder
-func newAvroEncDec(s schemaRegistry) EncoderDecoder {
-	cacheTime := time.Minute * 10
-	purgeTime := time.Minute * 10
+func newAvroEncDec(s schemaRegistry,
+	c *cache.Cache, cacheTime time.Duration) EncoderDecoder {
 
 	return &avroEncoderDecoder{
 		schemaReg: s,
-		cache:     cache.New(cacheTime, purgeTime),
+		cache:     c,
 		cacheTime: cacheTime}
 }
 
@@ -95,6 +94,11 @@ func (ed avroEncoderDecoder) Encode(
 	}
 
 	fields := getFieldMap(ctx, rv)
+	if fields == nil || len(fields) == 0 {
+		e = errNoFields
+		lg.Error(logger.LogCatInputValidation, e)
+		return
+	}
 
 	dataMap := make(map[string]interface{})
 	for k, v := range fields {
@@ -194,11 +198,10 @@ func (ed avroEncoderDecoder) Encode(
 //	    ]
 //  }
 //
-func (ed avroEncoderDecoder) Decode(ctx context.Context,
+func (ed avroEncoderDecoder) Decode(
 	topic string, b []byte, target interface{}) (e error) {
 
-	lg := logger.New(ctx, "")
-
+	lg := logger.New(nil, "")
 	var rv reflect.Value
 
 	if _, ok := target.(reflect.Value); ok {
@@ -215,74 +218,94 @@ func (ed avroEncoderDecoder) Decode(ctx context.Context,
 	rv = rv.Elem()
 
 	// convert binary message into a map of data
-	data, e := ed.binaryToMap(ctx, topic, b)
+	data, e := ed.binaryToMap(topic, b)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
 		return
 	}
 
 	// get metadata for all fields in target struct
-	fields := getFieldMap(ctx, rv)
+	fields := getFieldMap(nil, rv)
 
 	// range through data map and insert data into
 	// target struct, field-by-field
 	for k, v := range data {
-		if v == nil {
-			continue
+		fieldInfo := fields[k]
+		if (fieldInfo == field{}) {
+			e = errFieldInfo(k)
+			lg.Error(logger.LogCatInputValidation, e)
+			return
 		}
 
-		fieldInfo := fields[k]
 		// get appropriate target field
 		f := rv.FieldByName(fieldInfo.Name)
 		// get field type
 		tarFieldType := f.Type()
 
-		// find val to set
-		valToSet := v
-		if v, ok := v.(map[string]interface{}); ok {
-			// handle primitive type/value
-			// get key for inner map
-			mapKey := fieldInfo.AvroType
-			// get field value using inner map key
-			valToSet = v[mapKey]
-		}
-
-		if valToSet == nil {
-			continue
-		}
-
-		// handle complex type/value (recursive decode)
-		if fieldInfo.TopicTag != "" {
-			b, ok := valToSet.([]byte)
-			if ok {
-				nestedMsg := reflect.New(tarFieldType)
-				e = ed.Decode(ctx, fieldInfo.TopicTag, b, nestedMsg)
-				if e != nil {
-					lg.Error(logger.LogCatKafkaDecode, e)
-					return
-				}
-
-				if f.IsValid() && f.CanSet() {
-					f.Set(nestedMsg.Elem())
-				}
-				return
-			}
-		}
-
-		// get intended value type
-		valType := reflect.TypeOf(valToSet)
-
-		// check field type and intended value type match
-		if tarFieldType != valType {
-			e = errUnmarshallFieldType(fieldInfo.Name, tarFieldType, valType)
+		e = ed.applyDataToField(fieldInfo, f, tarFieldType, v)
+		if e != nil {
 			lg.Error(logger.LogCatKafkaDecode, e)
 			return
 		}
+	}
 
-		// set field value
-		if f.IsValid() && f.CanSet() {
-			f.Set(reflect.ValueOf(valToSet))
+	return
+}
+
+func (ed avroEncoderDecoder) applyDataToField(fldInfo field,
+	fld reflect.Value, fldType reflect.Type, dataVal interface{}) (e error) {
+
+	lg := logger.New(nil, "")
+
+	if dataVal == nil || fldType == nil {
+		return
+	}
+
+	// find val to set
+	valToSet := dataVal
+	if v, ok := dataVal.(map[string]interface{}); ok {
+		// handle primitive type/value
+		// get key for inner map
+		mapKey := fldInfo.AvroType
+		// get field value using inner map key
+		valToSet = v[mapKey]
+	}
+
+	if valToSet == nil {
+		return
+	}
+
+	// handle complex type/value (recursive decode)
+	if fldInfo.TopicTag != "" {
+		b, ok := valToSet.([]byte)
+		if ok {
+			nestedMsg := reflect.New(fldType)
+			e = ed.Decode(fldInfo.TopicTag, b, nestedMsg)
+			if e != nil {
+				lg.Error(logger.LogCatKafkaDecode, e)
+				return
+			}
+
+			if fld.IsValid() && fld.CanSet() {
+				fld.Set(nestedMsg.Elem())
+			}
+			return
 		}
+	}
+
+	// get intended value type
+	valType := reflect.TypeOf(valToSet)
+
+	// check field type and intended value type match
+	if fldType != valType {
+		e = errUnmarshallFieldType(fldInfo.Name, fldType, valType)
+		lg.Error(logger.LogCatKafkaDecode, e)
+		return
+	}
+
+	// set field value
+	if fld.IsValid() && fld.CanSet() {
+		fld.Set(reflect.ValueOf(valToSet))
 	}
 
 	return
@@ -302,11 +325,11 @@ func (ed avroEncoderDecoder) GetSchemaID(
 }
 
 func (ed avroEncoderDecoder) binaryToMap(
-	ctx context.Context, topic string, b []byte) (data map[string]interface{}, e error) {
+	topic string, b []byte) (data map[string]interface{}, e error) {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
-	codec, e := ed.getTopicCodec(ctx, topic)
+	codec, e := ed.getTopicCodec(nil, topic)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
 		return
@@ -317,7 +340,14 @@ func (ed avroEncoderDecoder) binaryToMap(
 	i, _, e := codec.NativeFromBinary(b[5:])
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
-		return
+
+		// if the schema was first registered by the service
+		// messages might not contain encoded metadata
+		i, _, e = codec.NativeFromBinary(b)
+		if e != nil {
+			lg.Error(logger.LogCatKafkaDecode, e)
+			return
+		}
 	}
 
 	data, ok := i.(map[string]interface{})
@@ -335,16 +365,18 @@ func (ed avroEncoderDecoder) getTopicCodec(
 
 	lg := logger.New(ctx, "")
 
-	if codec, found := ed.cache.Get(topic); found {
-		var ok bool
-		c, ok = codec.(*goavro.Codec)
-		if ok {
-			return
-		}
+	if ed.cache != nil {
+		if codec, found := ed.cache.Get(topic); found {
+			var ok bool
+			c, ok = codec.(*goavro.Codec)
+			if ok {
+				return
+			}
 
-		// if there was an issue above, log error,
-		// go on ahead and fetch schema from schema reg, not cache
-		lg.Error(logger.LogCatCacheRead, errCacheItemType)
+			// if there was an issue above, log error,
+			// go on ahead and fetch schema from schema reg, not cache
+			lg.Error(logger.LogCatCacheRead, errCacheItemType)
+		}
 	}
 
 	schema, _, e := ed.schemaReg.GetSchemaByTopic(ctx, topic)
@@ -359,11 +391,9 @@ func (ed avroEncoderDecoder) getTopicCodec(
 		return
 	}
 
-	e = ed.cache.Add(topic, c, ed.cacheTime)
-	if e != nil {
-		lg.Error(logger.LogCatKafkaDecode, e)
+	if ed.cache != nil {
+		ed.cache.Set(topic, c, ed.cacheTime)
 	}
-
 	return
 }
 

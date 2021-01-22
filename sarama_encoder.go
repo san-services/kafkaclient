@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"reflect"
 
 	logger "github.com/san-services/apilogger"
 )
@@ -26,14 +25,6 @@ type saramaStructEncoder struct {
 func newSaramaStructEncoder(ctx context.Context, topic string,
 	msgStruct interface{}, ed EncoderDecoder) (s *saramaStructEncoder, e error) {
 
-	lg := logger.New(ctx, "")
-
-	if reflect.ValueOf(msgStruct).Kind() != reflect.Ptr {
-		e = errPtrRequired
-		lg.Error(logger.LogCatInputValidation, e)
-		return
-	}
-
 	return &saramaStructEncoder{
 		topic:          topic,
 		encoderDecoder: ed,
@@ -46,15 +37,21 @@ func (se *saramaStructEncoder) Encode() (b []byte, e error) {
 	lg := logger.New(se.ctx, "")
 
 	initialBytes, e := se.encoderDecoder.Encode(se.ctx, se.topic, se.msgStruct)
-	be := newSaramaByteEncoder(se.ctx, se.topic, initialBytes, se.encoderDecoder)
+	if e != nil {
+		lg.Error(logger.LogCatKafkaEncode, e)
+		return
+	}
+
+	be := newSaramaByteEncoder(se.ctx,
+		se.topic, initialBytes, se.encoderDecoder)
 
 	b, e = be.Encode()
 	if e != nil {
 		lg.Error(logger.LogCatKafkaEncode, e)
 		return
 	}
-	se.msgBinary = b
 
+	se.msgBinary = b
 	return
 }
 

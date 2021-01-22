@@ -9,7 +9,7 @@ const (
 		"name": "DefaultRetryTopicSchema",
 		"fields": [
 			{
-				"name": "ERROR_MESSAGE",
+				"name": "error_message",
 				"type": [
 					"null",
 					"string"
@@ -17,7 +17,31 @@ const (
 				"default": null
 			},
 			{
-				"name": "ORIGINAL_MESSAGE",
+				"name": "original_topic",
+				"type": [
+					"null",
+					"string"
+				],
+				"default": null
+			},
+			{
+				"name": "original_partition",
+				"type": [
+					"null",
+					"int"
+				],
+				"default": null
+			},
+			{
+				"name": "original_offset",
+				"type": [
+					"null",
+					"long"
+				],
+				"default": null
+			},
+			{
+				"name": "original_message",
 				"type": [
 					"null",
 					"bytes"

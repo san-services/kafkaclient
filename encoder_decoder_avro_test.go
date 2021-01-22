@@ -5,12 +5,10 @@ import (
 	"testing"
 )
 
-
-
 func TestAvroDecode(t *testing.T) {
 	ctx := context.Background()
 	sr := mockSchemaReg{}
-	ed := newAvroEncDec(sr)
+	ed := newAvroEncDec(sr, nil, 0)
 
 	// decode initial topic message
 	testMessage := testTopicMessage{ID: 1, Name: "TestMessage"}
@@ -21,7 +19,7 @@ func TestAvroDecode(t *testing.T) {
 	}
 
 	decodedTestMessage := testTopicMessage{}
-	e = ed.Decode(ctx, testTopicName, b, &decodedTestMessage)
+	e = ed.Decode(testTopicName, b, &decodedTestMessage)
 	if e != nil {
 		t.Error(e)
 	}
@@ -39,7 +37,7 @@ func TestAvroDecode(t *testing.T) {
 	}
 
 	decodedRetryMessage := retryTopicMessage{}
-	e = ed.Decode(ctx, retryTopicName, rb, &decodedRetryMessage)
+	e = ed.Decode(retryTopicName, rb, &decodedRetryMessage)
 	if e != nil {
 		t.Error(e)
 	}
@@ -52,7 +50,7 @@ func TestAvroDecode(t *testing.T) {
 	}
 
 	decodedOrigMessage := testTopicMessage{}
-	e = ed.Decode(ctx, testTopicName, decodedRetryMessage.OriginalMessage, &decodedOrigMessage)
+	e = ed.Decode(testTopicName, decodedRetryMessage.OriginalMessage, &decodedOrigMessage)
 	if e != nil {
 		t.Error(e)
 	}
@@ -71,7 +69,7 @@ func TestAvroDecode(t *testing.T) {
 	}
 
 	decodedComplex := retryTopicMsgComplex{}
-	e = ed.Decode(ctx, retryTopicName, nb, &decodedComplex)
+	e = ed.Decode(retryTopicName, nb, &decodedComplex)
 	if e != nil {
 		t.Error(e)
 	}
@@ -93,4 +91,3 @@ type retryTopicMsgComplex struct {
 	OriginalTopic   string           `avro:"ORIGINAL_TOPIC"`
 	OriginalMessage testTopicMessage `avro:"ORIGINAL_MESSAGE" topic:"test"`
 }
-

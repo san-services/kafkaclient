@@ -1,8 +1,6 @@
 package kafkaclient
 
 import (
-	"context"
-
 	"github.com/Shopify/sarama"
 	logger "github.com/san-services/apilogger"
 )
@@ -24,10 +22,10 @@ func newSaramaMessage(
 }
 
 // Unmarshall unmarshalls the message contents into the provided struct
-func (m SaramaMessage) Unmarshall(ctx context.Context, native interface{}) (e error) {
-	lg := logger.New(ctx, "")
+func (m SaramaMessage) Unmarshall(native interface{}) (e error) {
+	lg := logger.New(nil, "")
 
-	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
+	e = m.encoderDecoder.Decode(m.m.Topic, m.m.Value, native)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
 	}

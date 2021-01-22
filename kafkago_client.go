@@ -39,13 +39,12 @@ func newKafkaGOClient(conf Config) (c KafkaClient, e error) {
 }
 
 // StartConsume starts consuming configured kafka topic messages
-func (c *KafkaGoClient) StartConsume(ctx context.Context) (e error) {
-	go func() {
-		select {
-		case <-c.consumer.initialized:
-			c.consumer.startConsume(ctx)
-		}
-	}()
+func (c *KafkaGoClient) StartConsume() (e error) {
+	select {
+	case <-c.consumer.initialized:
+		go c.handleProcessingFail()
+		go c.consumer.startConsume()
+	}
 	return
 }
 
@@ -68,7 +67,7 @@ func (c *KafkaGoClient) CancelConsume() (e error) {
 func (c *KafkaGoClient) ProduceMessage(
 	ctx context.Context, topic string, key string, msg interface{}) (e error) {
 
-	lg := logger.New(context.Background(), "")
+	lg := logger.New(nil, "")
 
 	if !c.producer.initialized {
 		e = errProducerUninit
@@ -86,8 +85,7 @@ func (c *KafkaGoClient) ProduceMessage(
 }
 
 func (c *KafkaGoClient) handleProcessingFail() (e error) {
-	ctx := context.Background()
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	for {
 		select {
@@ -96,8 +94,8 @@ func (c *KafkaGoClient) handleProcessingFail() (e error) {
 				fail.msg.Topic(), fail.msg.Partition(),
 				fail.msg.Offset(), fail.msg.Value(), fail.e)
 
-			e = c.producer.produceMessage(
-				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
+			e = c.producer.produceMessage(nil,
+				fail.retryTopic, fail.msg.Key(), retryMsg)
 
 			if e != nil {
 				lg.Error(logger.LogCatKafkaProduce, e)

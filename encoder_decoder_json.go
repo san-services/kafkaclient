@@ -19,7 +19,7 @@ func (ed jsonEncoderDecoder) Encode(
 	return nil, errNotImpl
 }
 
-func (ed jsonEncoderDecoder) Decode(ctx context.Context,
+func (ed jsonEncoderDecoder) Decode(
 	topic string, b []byte, target interface{}) (e error) {
 
 	return errNotImpl

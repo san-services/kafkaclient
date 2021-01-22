@@ -15,11 +15,14 @@ type saramaProducer struct {
 	initialized bool
 }
 
-func newSaramaProducer(ctx context.Context,
-	prodType producerType, brokers []string, topicConf map[string]TopicConfig,
-	saramaConf *sarama.Config, schemaReg schemaRegistry) (p saramaProducer, e error) {
+func newSaramaProducer(
+	prodType producerType,
+	brokers []string,
+	topicConf map[string]TopicConfig,
+	saramaConf *sarama.Config,
+	schemaReg schemaRegistry) (p saramaProducer, e error) {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	switch prodType {
 	case ProducerTypeSync:
@@ -32,7 +35,10 @@ func newSaramaProducer(ctx context.Context,
 
 	if e != nil {
 		lg.Error(logger.LogCatKafkaProducerInit, e)
+		return
 	}
+
+	go p.handleAsyncResponses()
 
 	p.topicConf = topicConf
 	p.initialized = true
@@ -61,7 +67,7 @@ func (p *saramaProducer) produceMessage(
 	case sarama.AsyncProducer:
 		(p.producer.(sarama.AsyncProducer)).Input() <- m
 	default:
-		return errInvalidProducer
+		e = errInvalidProducer
 	}
 
 	if e != nil {
@@ -71,8 +77,8 @@ func (p *saramaProducer) produceMessage(
 	return
 }
 
-func (p *saramaProducer) handleAsyncResponses(ctx context.Context) {
-	lg := logger.New(ctx, "")
+func (p *saramaProducer) handleAsyncResponses() {
+	lg := logger.New(nil, "")
 
 	for {
 		select {
@@ -80,7 +86,7 @@ func (p *saramaProducer) handleAsyncResponses(ctx context.Context) {
 			lg.Infof(logger.LogCatKafkaProduce,
 				infoEvent(infoProduceSuccess, message.Topic, message.Partition, message.Offset))
 		case e := <-(p.producer.(sarama.AsyncProducer)).Errors():
-			lg.Error(logger.LogCatKafkaProduce, errProduceFail, e)
+			lg.Error(logger.LogCatKafkaProduce, errProduceFail(e.Msg.Topic), e)
 		}
 	}
 }
@@ -91,6 +97,10 @@ func (p *saramaProducer) getSaramaEncoder(ctx context.Context,
 	lg := logger.New(ctx, "")
 
 	codec := topicConf.messageCodec
+	if codec == nil {
+		lg.Error(logger.LogCatKafkaProduce, errCodecNil(topicConf.Name))
+		return
+	}
 
 	switch msg.(type) {
 	case string:

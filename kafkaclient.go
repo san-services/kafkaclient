@@ -19,7 +19,7 @@ const (
 // KafkaClient is an interface describing the primary uses of this library
 type KafkaClient interface {
 	// StartConsume starts the consumption of messages from the configured Kafka topics
-	StartConsume(ctx context.Context) error
+	StartConsume() error
 	handleProcessingFail() error
 	// CancelConsume cancels the consumption of messages from configured topics
 	CancelConsume() error
@@ -28,7 +28,7 @@ type KafkaClient interface {
 }
 
 // New constructs and returns a new KafkaClient implementation
-func New(base baseLibrary, config Config) (KafkaClient, error) {
+func New(base baseLibrary, config Config) (c KafkaClient, e error) {
 	switch base {
 	case BaseSarama:
 		return newSaramaClient(config)

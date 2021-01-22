@@ -3,7 +3,6 @@ package kafkaclient
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"net"
 	"net/http"
 	"time"
@@ -23,8 +22,6 @@ var (
 	// usually, for each topic there are subjects $TOPIC-key (if there is a key schema)
 	// and $TOPIC-value, each one with their own schema
 	subject = func(topic string) string { return topic + "-value" }
-
-	errNoSchema = errors.New("no schema file path configured")
 )
 
 // SchemaReg implements the kafka.SchemaRegistry interface
@@ -50,7 +47,6 @@ func newSchemaReg(
 
 	client, e := schemaregistry.NewClient(url,
 		schemaregistry.UsingClient(httpsClient))
-
 
 	if e != nil {
 		return nil, e
@@ -82,24 +78,32 @@ func (sr *schemaReg) GetSchemaByTopic(
 
 	lg := logger.New(ctx, "")
 
+	topicConf := sr.topics[topic]
+
 	s, e := sr.client.GetLatestSchema(subject(topic))
+
+	if e == nil &&
+		!(s.Version < topicConf.SchemaVersion &&
+			topicConf.Schema != "") {
+
+		return s.Schema, s.ID, nil
+	}
+
+	if topicConf.Schema == "" {
+		e = errNoSchema(topic)
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
+		return
+	}
+
+	schemaID, e = sr.RegisterSchema(ctx, topic)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
-	topicConf := sr.topics[topic]
-	if s.Version < topicConf.SchemaVersion {
-		schemaID, e = sr.RegisterSchema(ctx, topic)
-		if e != nil {
-			lg.Error(logger.LogCatKafkaSchemaReg, e)
-			return
-		}
-
-		schema, e = sr.GetSchemaByID(ctx, schemaID)
-		if e != nil {
-			lg.Error(logger.LogCatKafkaSchemaReg, e)
-		}
+	schema, e = sr.GetSchemaByID(ctx, schemaID)
+	if e != nil {
+		lg.Error(logger.LogCatKafkaSchemaReg, e)
 	}
 
 	return s.Schema, s.ID, e

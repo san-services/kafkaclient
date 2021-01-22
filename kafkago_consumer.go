@@ -3,6 +3,7 @@ package kafkaclient
 import (
 	"context"
 	"crypto/tls"
+	"sync"
 	"time"
 
 	logger "github.com/san-services/apilogger"
@@ -15,6 +16,7 @@ type kafkagoConsumer struct {
 	topicNames       []string
 	brokers          []string
 	initialized      chan bool
+	consumerWait     sync.WaitGroup
 	topicConfig      map[string]TopicConfig
 	procDependencies ProcessorDependencies
 	failMessages     chan failedMessage
@@ -24,7 +26,7 @@ func newKafkagoConsumer(groupID string, brokers []string,
 	topicNames []string, topicConf map[string]TopicConfig,
 	pd ProcessorDependencies, tls *tls.Config) (c kafkagoConsumer, e error) {
 
-	lg := logger.New(context.Background(), "")
+	lg := logger.New(nil, "")
 
 	d := &kafka.Dialer{
 		Timeout:   10 * time.Second,
@@ -48,6 +50,7 @@ func newKafkagoConsumer(groupID string, brokers []string,
 		topicNames:       topicNames,
 		brokers:          brokers,
 		group:            group,
+		consumerWait:     sync.WaitGroup{},
 		procDependencies: pd}
 
 	c.initialized = make(chan bool, 1)
@@ -61,8 +64,8 @@ func newKafkagoConsumer(groupID string, brokers []string,
 	return
 }
 
-func (c *kafkagoConsumer) startConsume(ctx context.Context) {
-	lg := logger.New(ctx, "")
+func (c *kafkagoConsumer) startConsume() {
+	lg := logger.New(nil, "")
 	var e error
 
 	for {
@@ -72,19 +75,22 @@ func (c *kafkagoConsumer) startConsume(ctx context.Context) {
 		c.gen, e = c.group.Next(context.TODO())
 		if e != nil {
 			lg.Error(logger.LogCatKafkaConsume, e)
-			break
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
+		c.consumerWait.Add(len(c.topicNames))
 		for _, t := range c.topicNames {
-			go c.consumeTopic(ctx, t)
+			go c.consumeTopic(t)
 		}
-	}
 
-	return
+		c.consumerWait.Wait()
+	}
 }
 
-func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
-	lg := logger.New(ctx, "")
+func (c *kafkagoConsumer) consumeTopic(topic string) {
+	lg := logger.New(nil, "")
+	defer c.consumerWait.Done()
 
 	conf := c.topicConfig[topic]
 
@@ -137,20 +143,18 @@ func (c *kafkagoConsumer) consumeTopic(ctx context.Context, topic string) {
 						lg.Error(logger.LogCatKafkaCommitOffset, errSetOffset(e))
 					}
 
-					c.commitOffset(ctx, topic, partition, offset-1)
+					c.commitOffset(topic, partition, offset-1)
 				}
 
 				// successful message processing
-				c.commitOffset(ctx, topic, partition, offset)
+				c.commitOffset(topic, partition, offset)
 			}
 		})
 	}
 }
 
-func (c *kafkagoConsumer) commitOffset(
-	ctx context.Context, topic string, partition int, offset int64) {
-
-	lg := logger.New(ctx, "")
+func (c *kafkagoConsumer) commitOffset(topic string, partition int, offset int64) {
+	lg := logger.New(nil, "")
 
 	e := c.gen.CommitOffsets(
 		map[string]map[int]int64{topic: {partition: offset}})
