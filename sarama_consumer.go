@@ -25,12 +25,12 @@ type saramaConsumer struct {
 	ctx              context.Context
 }
 
-func newSaramaConsumer(ctx context.Context,
+func newSaramaConsumer(
 	saramaConf *sarama.Config, groupID string,
-	topicConf map[string]TopicConfig, topicNames []string, brokers []string,
-	pd ProcessorDependencies) (c saramaConsumer, e error) {
+	topicConf map[string]TopicConfig, topicNames []string, 
+	brokers []string, pd ProcessorDependencies) (c saramaConsumer, e error) {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	consumerCtx, cancel := context.WithCancel(context.Background())
 
@@ -62,8 +62,8 @@ func newSaramaConsumer(ctx context.Context,
 	return
 }
 
-func (c *saramaConsumer) startConsume(ctx context.Context) {
-	lg := logger.New(ctx, "")
+func (c *saramaConsumer) startConsume() {
+	lg := logger.New(nil, "")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

@@ -16,7 +16,7 @@ func (ed strEncoderDecoder) Encode(
 	return nil, errNotImpl
 }
 
-func (ed strEncoderDecoder) Decode(ctx context.Context,
+func (ed strEncoderDecoder) Decode(
 	topic string, b []byte, target interface{}) (e error) {
 
 	return errNotImpl

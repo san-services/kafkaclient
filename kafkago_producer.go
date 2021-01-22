@@ -51,7 +51,6 @@ func (p *kafkagoProducer) produceMessage(
 	ctx context.Context, topic string, key string, msg interface{}) (e error) {
 
 	lg := logger.New(ctx, "")
-
 	topicConf := p.topicConf[topic]
 
 	msgbytes, e := topicConf.messageCodec.Encode(ctx, topic, msg)
@@ -67,10 +66,9 @@ func (p *kafkagoProducer) produceMessage(
 	e = p.writers[topic].WriteMessages(ctx, m)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaProduce, e)
-		return
 	}
 
-	return errNotImpl
+	return
 }
 
 func (p *kafkagoProducer) handleAsyncResponses(messages []kafka.Message, e error) {

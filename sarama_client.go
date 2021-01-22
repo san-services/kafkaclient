@@ -23,14 +23,13 @@ type SaramaClient struct {
 }
 
 func newSaramaClient(conf Config) (c KafkaClient, e error) {
-	ctx := context.Background()
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	if conf.Debug {
 		sarama.Logger = log.New(os.Stdout, logPrefSarama, log.LstdFlags)
 	}
 
-	sc, e := getSaramaConf(ctx, conf.KafkaVersion,
+	sc, e := getSaramaConf(conf.KafkaVersion,
 		conf.ConsumerGroupID, conf.ReadFromOldest, conf.TLS)
 
 	if e != nil {
@@ -38,8 +37,8 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	consumer := getSaramaConsumer(ctx, sc,
-		conf.ConsumerGroupID,
+	consumer := getSaramaConsumer(
+		sc, conf.ConsumerGroupID,
 		conf.TopicMap(), conf.ReadTopicNames(),
 		conf.Brokers, conf.ProcDependencies)
 
@@ -49,7 +48,7 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 		return
 	}
 
-	producer := getSaramaProducer(ctx,
+	producer := getSaramaProducer(
 		conf.ProducerType, conf.Brokers, conf.TopicMap(), sc, sr)
 
 	return &SaramaClient{
@@ -59,13 +58,12 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 }
 
 // StartConsume starts consuming configured kafka topic messages
-func (c *SaramaClient) StartConsume(ctx context.Context) (e error) {
-	go func() {
-		select {
-		case <-c.consumer.initialized:
-			c.consumer.startConsume(ctx)
-		}
-	}()
+func (c *SaramaClient) StartConsume() (e error) {
+	select {
+	case <-c.consumer.initialized:
+		go c.handleProcessingFail()
+		go c.consumer.startConsume()
+	}
 	return
 }
 
@@ -97,8 +95,7 @@ func (c *SaramaClient) ProduceMessage(
 }
 
 func (c *SaramaClient) handleProcessingFail() (e error) {
-	ctx := context.Background()
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	for {
 		select {
@@ -108,7 +105,7 @@ func (c *SaramaClient) handleProcessingFail() (e error) {
 				fail.msg.Offset(), fail.msg.Value(), fail.e)
 
 			e = c.producer.produceMessage(
-				ctx, fail.retryTopic, fail.msg.Key(), retryMsg)
+				nil, fail.retryTopic, fail.msg.Key(), retryMsg)
 
 			if e != nil {
 				lg.Error(logger.LogCatKafkaProduce, e)
@@ -117,11 +114,10 @@ func (c *SaramaClient) handleProcessingFail() (e error) {
 	}
 }
 
-func getSaramaConf(ctx context.Context, kafkaVersion string,
-	groupID string, fromOldest bool, tls *tls.Config) (c *sarama.Config, e error) {
+func getSaramaConf(kafkaVersion string, groupID string,
+	fromOldest bool, tls *tls.Config) (c *sarama.Config, e error) {
 
-	lg := logger.New(ctx, "")
-
+	lg := logger.New(nil, "")
 	c = sarama.NewConfig()
 
 	version, e := sarama.ParseKafkaVersion(kafkaVersion)
@@ -155,14 +151,14 @@ func getSaramaConf(ctx context.Context, kafkaVersion string,
 	return
 }
 
-func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
+func getSaramaConsumer(sc *sarama.Config,
 	groupID string, topicMap map[string]TopicConfig, topicNames []string,
 	brokers []string, pd ProcessorDependencies) *saramaConsumer {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
-	c, e := newSaramaConsumer(ctx,
-		sc, groupID, topicMap, topicNames, brokers, pd)
+	c, e := newSaramaConsumer(sc,
+		groupID, topicMap, topicNames, brokers, pd)
 
 	if e != nil {
 		// retry init in background on fail
@@ -171,8 +167,8 @@ func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
 				lg.Error(logger.LogCatKafkaConsumerInit, e)
 				time.Sleep(retryInitDelay)
 
-				c, e = newSaramaConsumer(ctx,
-					sc, groupID, topicMap, topicNames, brokers, pd)
+				c, e = newSaramaConsumer(sc,
+					groupID, topicMap, topicNames, brokers, pd)
 			}
 		}(e)
 	}
@@ -180,13 +176,13 @@ func getSaramaConsumer(ctx context.Context, sc *sarama.Config,
 	return &c
 }
 
-func getSaramaProducer(ctx context.Context,
-	prodType producerType, brokers []string, topicMap map[string]TopicConfig,
+func getSaramaProducer(prodType producerType,
+	brokers []string, topicMap map[string]TopicConfig,
 	sc *sarama.Config, sr schemaRegistry) *saramaProducer {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
-	p, e := newSaramaProducer(ctx,
+	p, e := newSaramaProducer(
 		prodType, brokers, topicMap, sc, sr)
 
 	if e != nil {
@@ -196,7 +192,7 @@ func getSaramaProducer(ctx context.Context,
 				lg.Error(logger.LogCatKafkaProducerInit, e)
 				time.Sleep(retryInitDelay)
 
-				p, e = newSaramaProducer(ctx,
+				p, e = newSaramaProducer(
 					prodType, brokers, topicMap, sc, sr)
 			}
 		}(e)

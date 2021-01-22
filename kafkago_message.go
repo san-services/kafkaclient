@@ -1,7 +1,6 @@
 package kafkaclient
 
 import (
-	"context"
 	"fmt"
 
 	logger "github.com/san-services/apilogger"
@@ -25,10 +24,10 @@ func newKafkaGoMessage(
 }
 
 // Unmarshall unmarshalls the message contents into the provided struct
-func (m KafkaGoMessage) Unmarshall(ctx context.Context, native interface{}) (e error) {
-	lg := logger.New(ctx, "")
+func (m KafkaGoMessage) Unmarshall(native interface{}) (e error) {
+	lg := logger.New(nil, "")
 
-	e = m.encoderDecoder.Decode(ctx, m.m.Topic, m.m.Value, native)
+	e = m.encoderDecoder.Decode(m.m.Topic, m.m.Value, native)
 	if e != nil {
 		lg.Error(logger.LogCatKafkaDecode, e)
 	}

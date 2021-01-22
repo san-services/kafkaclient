@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	cache "github.com/patrickmn/go-cache"
 	logger "github.com/san-services/apilogger"
 )
 
@@ -66,7 +67,7 @@ func NewConfig(
 	prodType producerType, readFromOldest bool,
 	tls *tls.Config, debug bool) (c Config, e error) {
 
-	lg := logger.New(ctx, "")
+	lg := logger.New(nil, "")
 
 	c = Config{
 		KafkaVersion:     version,
@@ -81,25 +82,35 @@ func NewConfig(
 		TLS:              tls,
 		Debug:            debug}
 
-	sr, e := newSchemaReg(schemaRegURL, tls, c.TopicMap())
+	sr, e := newSchemaReg(c.SchemaRegURL, c.TLS, c.TopicMap())
 	if e != nil {
 		lg.Error(logger.LogCatKafkaSchemaReg, e)
 		return
 	}
 
-	for i, t := range topics {
+	cacheTime := time.Minute * 10
+	purgeTime := time.Minute * 10
+	cache := cache.New(cacheTime, purgeTime)
+
+	for i, t := range c.Topics {
 		if t.MessageProcessor == nil {
 			t.MessageProcessor = DefaultProcessor
 		}
 
 		switch t.MessageFormat {
 		case MessageFormatAvro:
-			topics[i].messageCodec = newAvroEncDec(sr)
+			c.Topics[i].messageCodec = newAvroEncDec(sr, cache, cacheTime)
 		case MessageFormatJSON:
 			e = errNoEncoderDecoder("JSON")
 		case MessageFormatString:
 			e = errNoEncoderDecoder("string")
 		default:
+			e = errNoMessageFmt(t.Name)
+		}
+
+		if e != nil {
+			lg.Error(logger.LogCatKafkaConfig, e)
+			return
 		}
 	}
 

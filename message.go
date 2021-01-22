@@ -1,14 +1,12 @@
 package kafkaclient
 
-import "context"
-
 const (
 	tagOrigTopic = "original_topic"
 )
 
 // ConsumerMessage is an interface implememented by kafka consumer message types
 type ConsumerMessage interface {
-	Unmarshall(ctx context.Context, native interface{}) (e error)
+	Unmarshall(native interface{}) (e error)
 	Topic() string
 	Key() string
 	Offset() int64
@@ -35,7 +33,7 @@ type RetryTopicMessage struct {
 	OriginalPartition int32  `json:"original_partition" avro:"original_partition"`
 	OriginalOffset    int64  `json:"original_offset" avro:"original_offset"`
 	OriginalMessage   []byte `json:"original_message" avro:"original_message"`
-	Error             string `json:"error" avro:"error"`
+	Error             string `json:"error_message" avro:"error_message"`
 }
 
 // NewRetryTopicMessage constructs and returns a new RetryTopicMessage to be added to a retry topic
