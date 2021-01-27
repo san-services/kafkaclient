@@ -59,11 +59,13 @@ func newSaramaClient(conf Config) (c KafkaClient, e error) {
 
 // StartConsume starts consuming configured kafka topic messages
 func (c *SaramaClient) StartConsume() (e error) {
-	select {
-	case <-c.consumer.initialized:
-		go c.handleProcessingFail()
-		go c.consumer.startConsume()
-	}
+	go func() {
+		select {
+		case <-c.consumer.initialized:
+			go c.handleProcessingFail()
+			go c.consumer.startConsume()
+		}
+	}()
 	return
 }
 
