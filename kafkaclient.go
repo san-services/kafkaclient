@@ -2,6 +2,8 @@ package kafkaclient
 
 import (
 	"context"
+
+	logger "github.com/san-services/apilogger"
 )
 
 type baseLibrary string
@@ -29,6 +31,16 @@ type KafkaClient interface {
 
 // New constructs and returns a new KafkaClient implementation
 func New(base baseLibrary, config Config) (c KafkaClient, e error) {
+	lg := logger.New(nil, "")
+
+	e = config.validate()
+	if e != nil {
+		lg.Error(logger.LogCatKafkaConfig, e)
+		return
+	}
+
+	config.finalize()
+
 	switch base {
 	case BaseSarama:
 		return newSaramaClient(config)
