@@ -35,7 +35,7 @@ const (
 	ProducerTypeSync producerType = "PRODUCER_SYNC"
 
 	// config defaults
-	retryInitDelay = 5 * time.Second
+	retryInitDelay = 10 * time.Second
 )
 
 // Config holds specifics used to configure different
