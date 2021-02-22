@@ -3,7 +3,7 @@ package kafkaclient
 const (
 	tagOrigTopic = "original_topic"
 )
-
+//GATDAMMIT
 // ConsumerMessage is an interface implememented by kafka consumer message types
 type ConsumerMessage interface {
 	Unmarshall(native interface{}) (e error)
