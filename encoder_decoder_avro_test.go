@@ -18,6 +18,8 @@ func TestAvroDecode(t *testing.T) {
 		t.Error(e)
 	}
 
+	//Decode something..
+
 	decodedTestMessage := testTopicMessage{}
 	e = ed.Decode(testTopicName, b, &decodedTestMessage)
 	if e != nil {
