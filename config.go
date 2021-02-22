@@ -1,5 +1,6 @@
 package kafkaclient
 
+// adding comment for testing
 import (
 	"context"
 	"crypto/tls"
