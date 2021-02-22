@@ -9,7 +9,7 @@ import (
 type baseLibrary string
 
 const (
-	// BaseSarama can be used in kafkaclient.New to specify that
+	// BaseSarama can be used in kafkaclient.New to specify that --test
 	// the underlying library used will be Shopify's sarama (https://github.com/Shopify/sarama/)
 	BaseSarama baseLibrary = "SARAMA"
 
