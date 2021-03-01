@@ -11,7 +11,7 @@ type baseLibrary string
 const (
 	// BaseSarama can be used in kafkaclient.New to specify that
 	// the underlying library used will be Shopify's sarama (https://github.com/Shopify/sarama/)
-	BaseSarama baseLibrary = "SARAMAAAAAA"
+	BaseSarama baseLibrary = "SARAMA"
 
 	// BaseKafkaGO can be used in kafkaclient.New to specify that
 	// the underlying library used will be kafkago (https://github.com/segmentio/kafka-go)
