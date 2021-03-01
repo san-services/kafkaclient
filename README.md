@@ -7,7 +7,7 @@ An overly-opinionated library to simplify interactions with existing go/kafka li
 - shopify/sarama 
 - segmentio/kafka-go 
 
-## Use
+## Basic Use
 
 ```
    go get github.com/san-services/kafkaclient/v2
@@ -29,9 +29,11 @@ func main() {
             DoConsume:             true,
             MessageFormat:         kafkaclient.MessageFormatAvro,
             DelayProcessingMins:   0,
-            FailedProcessingTopic: TestTopicDLQ,
+            
+            FailedProcessingTopic: TestTopicDLQ,        
             MessageProcessor:      processTestTopic,
-        },
+            // Schema:                myCustomSchema,    <-- see Avro docs below on configuring custom schemas
+            // SchemaVersion:         1                                                 
         {
             Name:                  TestTopicRetry1,
             DoConsume:             true,
@@ -54,23 +56,20 @@ func main() {
     pd := processorDependencies{
         service: mydomain.NewService()}
 
-    config, e := kafkaclient.NewConfig(ctx, 
-        "2.5.0", 
-        []string{"127.0.0.1"}, 
-        topics, 
-        pd,
-        "", 
-        kafkaclient.ConsumerTypeGroup,
-        "test_consumer", 
-        kafkaclient.ProducerTypeSync, 
-        true, 
-        nil, 
-        true)
+    tls := getTLSConfig()
 
-    if e != nil {
-        log.Println(e)
-        return
-    }
+    conf := kafkaclient.Config{
+		KafkaVersion:     "2.5.0",
+		Brokers:          []string{"192.15.16.1:9093", "192.15.16.2:9093"},
+		Topics:           topics,
+		SchemaRegURL:     "https://192.15.16.1:8181",
+		ConsumerType:     kafkaclient.ConsumerTypeGroup,
+		ConsumerGroupID:  "my-service",
+		ProcDependencies: pd,
+		ProducerType:     kafkaclient.ProducerTypeAsync,
+		ReadFromOldest:   false,
+		TLS:              tls,
+		Debug:            true}
 
     kc, e := kafkaclient.New(kafkaclient.BaseSarama, config)
     if e != nil {
@@ -147,6 +146,7 @@ Avro schema:
 ```json
 {
     "type": "record",
+    "name": "TestTopicRecord",
     "fields": [
         {
             "name": "ID",
@@ -211,3 +211,83 @@ type ThingRetry struct {
 }
 ```	
 	 
+## Producing a new avro message with a custom schema
+
+Scenario: you've just created a brand new test topic and would like to send an avro message to it without having to configure the schema on the schema registry itself.
+
+1. Create a new avro schema to represent your message and store it somewhere in your codebase - you will need to be able to retrieve it in string form, e.g.:
+
+```go
+const (
+    MyCustomSchema = `
+    {
+		"type": "record",
+		"name": "MyCustomSchema",
+		"fields": [
+			{
+				"name": "greeting",
+				"type": [
+					"null",
+					"string"
+				],
+				"default": null
+			},
+			{
+				"name": "name",
+				"type": [
+					"null",
+					"string"
+				],
+				"default": null
+			}
+		]
+	}`
+)
+```
+
+2. Make sure you have a go struct representing your custom schema - this will help you build a message to send, e.g.:
+
+```go
+type testMessage struct {
+    Greeting string `avro:"greeting"`
+    Name     string `avro:"name"`
+}
+```
+
+3. Specify the schema and the schema version in your TopicConfig. The version will be 1 if you have never used or changed this schema for this topic before. Every time you want to change the schema after it has initally been used, you must increment the version number so that the newer version will be saved on the schema registry, e.g.:
+
+```go
+testTopicName := "my-test-topic"
+
+topics := []kafkaclient.TopicConfig{
+        {
+            Name:                  testTopicName,
+            DoProduce:             true,
+            MessageFormat:         kafkaclient.MessageFormatAvro,
+            DelayProcessingMins:   0,
+            Schema:                MyCustomSchema,
+            SchemaVersion:         1
+            MessageProcessor:      processTestTopic,
+        },
+        ...
+```
+
+4. Produce a message to this topic, e.g.:
+
+```go
+    kc, e := kafkaclient.New(kafkaclient.BaseSarama, config)
+    if e != nil {
+        log.Println(e)
+        return
+    }
+
+    e := kc.ProduceMessage(ctx, testTopicName, 
+	    "test-message-1", testMessage{Greeting: "hello", Name: "world"})
+
+    if e != nil {
+        log.Println(e)
+    }
+```
+
+Notes:
+- you can then obviously consume from this topic using the same golang struct to unmarshall the message into (make sure `DoConsume` is set to `true` in the TopcConfig entry)
