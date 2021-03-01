@@ -213,9 +213,9 @@ type ThingRetry struct {
 	 
 ## Producing a new avro message with a custom schema
 
-Scenario: you've just created a brand new test topic and would like to send an avro message to it without having to configure the schema on the schema registry itself.
+Scenario: you've just created a brand new test topic and would like to send an avro message to it without having to manually configure the schema on the schema registry itself.
 
-1. Create a new avro schema to represent your message and store it somewhere in your codebase - you will need to be able to retrieve it in string form, e.g.:
+1. Create a new avro schema to represent your message and store it somewhere in your codebase - you will need to be able to retrieve it in string form. Make sure it is in valid json format, e.g.:
 
 ```go
 const (
@@ -245,7 +245,7 @@ const (
 )
 ```
 
-2. Make sure you have a go struct representing your custom schema - this will help you build a message to send, e.g.:
+2. Create a go struct to represent your custom schema - this will help you build a message to send, e.g.:
 
 ```go
 type testMessage struct {
@@ -254,7 +254,7 @@ type testMessage struct {
 }
 ```
 
-3. Specify the schema and the schema version in your TopicConfig. The version will be 1 if you have never used or changed this schema for this topic before. Every time you want to change the schema after it has initally been used, you must increment the version number so that the newer version will be saved on the schema registry, e.g.:
+3. Specify the `Schema` and the `SchemaVersion` in your `TopicConfig`. The version will be `1` if you have never used or changed this schema for this topic before. Every time you want to change the schema after it has initally been used, you must increment the version number so that the newer version will be saved on the schema registry, e.g.:
 
 ```go
 testTopicName := "my-test-topic"
