@@ -77,7 +77,7 @@ func main() {
         return
     }
 
-    kc.StartConsume(ctx)
+    kc.StartConsume()
 
     e := kc.ProduceMessage(ctx, TestTopic, 
 	    "message_key_238to2efgb", testTopicAvroMessage{ID: 1, Name: "foofoo"})
@@ -109,7 +109,7 @@ func processTestTopic(ctx context.Context,
     }
 
     data := testTopicAvroMessage{}
-    e = msg.Unmarshall(ctx, &data)
+    e = msg.Unmarshall(&data)
     if e != nil {
         log.Println(e)
         return
