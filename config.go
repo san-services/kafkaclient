@@ -167,7 +167,7 @@ type TopicConfig struct {
 	messageCodec  EncoderDecoder
 	// Set DoConsume to true if this topic should be consumed from
 	DoConsume bool
-	// Set SoProduce to true if you will need to produce messages to this topic
+	// Set DoProduce to true if you will need to produce messages to this topic
 	DoProduce           bool
 	DelayProcessingMins time.Duration
 	// FailedProcessingTopic is the retry topic to which a message
